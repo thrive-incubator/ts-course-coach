@@ -1,9 +1,13 @@
-"""Marketing-brief generation + proposal export."""
+"""Marketing-brief generation, proposal export, and save/resume."""
 
 from __future__ import annotations
 
 import json
 import logging
+import re
+import secrets
+import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -22,6 +26,15 @@ class Proposal(BaseModel):
     data: dict[str, Any]
 
 
+class SaveRequest(BaseModel):
+    id: str | None = None
+    data: dict[str, Any]
+
+
+class SaveResponse(BaseModel):
+    id: str
+
+
 class MarketingBrief(BaseModel):
     audience_personas: list[dict[str, str]]
     value_propositions: list[str]
@@ -35,6 +48,62 @@ class MarketingBrief(BaseModel):
 class ExportResponse(BaseModel):
     markdown: str
 
+
+# ---- Save & resume ---------------------------------------------------------
+
+STORAGE_DIR = Path("./data/proposals")
+ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
+
+
+def _storage_path(proposal_id: str) -> Path:
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    return STORAGE_DIR / f"{proposal_id}.json"
+
+
+@router.post("/save", response_model=SaveResponse)
+async def save_proposal(req: SaveRequest) -> SaveResponse:
+    """Persist a proposal to the server and return its id.
+
+    Provide the existing id to update; omit to mint a new one. Payload is
+    stored as-is on the filesystem; ids are opaque tokens (treat like share URLs).
+    """
+    if req.id and not ID_RE.match(req.id):
+        raise HTTPException(status_code=400, detail="Invalid id shape")
+
+    proposal_id = req.id or secrets.token_urlsafe(9)
+    if not ID_RE.match(proposal_id):
+        # secrets.token_urlsafe uses url-safe chars; sanity-check.
+        raise HTTPException(status_code=500, detail="Generated id failed validation")
+
+    payload = {
+        "id": proposal_id,
+        "updated_at": int(time.time()),
+        "data": req.data,
+    }
+    try:
+        _storage_path(proposal_id).write_text(json.dumps(payload, ensure_ascii=False))
+    except OSError as exc:
+        logger.exception("proposal save failed")
+        raise HTTPException(status_code=500, detail=f"Save failed: {exc}") from exc
+
+    return SaveResponse(id=proposal_id)
+
+
+@router.get("/load/{proposal_id}")
+async def load_proposal(proposal_id: str) -> dict[str, Any]:
+    if not ID_RE.match(proposal_id):
+        raise HTTPException(status_code=400, detail="Invalid id shape")
+    path = _storage_path(proposal_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=500, detail=f"Load failed: {exc}") from exc
+    return payload.get("data", {})
+
+
+# ---- Marketing brief ------------------------------------------------------
 
 _BRIEF_SYSTEM = (
     "You are a senior instructional-marketing strategist for Thrive Academy — a CEU-accredited "
@@ -109,6 +178,9 @@ async def marketing_brief(req: Proposal) -> MarketingBrief:
     )
 
 
+# ---- Export ---------------------------------------------------------------
+
+
 def _fmt(label: str, value: Any) -> str:
     if value is None or value == "":
         return f"**{label}:** _(not provided)_\n\n"
@@ -120,6 +192,70 @@ def _fmt(label: str, value: Any) -> str:
             return f"**{label}:**\n{rows}\n\n"
         return f"**{label}:**\n" + "\n".join(f"- {v}" for v in value) + "\n\n"
     return f"**{label}:** {value}\n\n"
+
+
+def _render_module(idx: int, mod: dict[str, Any]) -> str:
+    lines: list[str] = []
+    name = mod.get("module_name") or f"Module {idx}"
+    lines.append(f"### Module {idx}: {name}\n")
+    meta_bits: list[str] = []
+    if mod.get("contact_hours"):
+        meta_bits.append(f"{mod['contact_hours']} contact hours")
+    if mod.get("format"):
+        meta_bits.append(mod["format"])
+    if mod.get("faculty"):
+        meta_bits.append(f"Faculty: {mod['faculty']}")
+    if meta_bits:
+        lines.append("_" + " · ".join(meta_bits) + "_\n")
+
+    if mod.get("essential_question"):
+        lines.append(f"**Essential question.** {mod['essential_question']}\n")
+
+    objectives = mod.get("objectives") or []
+    if objectives:
+        lines.append("**Learning objectives.**")
+        for o in objectives:
+            bloom = o.get("bloom") or "—"
+            text = o.get("text") or ""
+            lines.append(f"- _[{bloom}]_ {text}")
+        lines.append("")
+
+    if mod.get("critical_information"):
+        lines.append(f"**Critical information.**\n{mod['critical_information']}\n")
+
+    if mod.get("engagement_opportunities"):
+        lines.append(f"**Opportunities for engagement.**\n{mod['engagement_opportunities']}\n")
+
+    features = mod.get("interactive_features") or []
+    if features or mod.get("interactive_features_notes"):
+        feature_line = "**Interactive features.** " + (
+            ", ".join(features) if features else "(none selected)"
+        )
+        lines.append(feature_line)
+        if mod.get("interactive_features_notes"):
+            lines.append(mod["interactive_features_notes"])
+        lines.append("")
+
+    if mod.get("required_readings"):
+        lines.append(f"**Required readings.** {mod['required_readings']}\n")
+    if mod.get("recommended_readings"):
+        lines.append(f"**Recommended readings.** {mod['recommended_readings']}\n")
+    if mod.get("assignments"):
+        lines.append(f"**Assignments.** {mod['assignments']}\n")
+
+    materials = mod.get("materials") or []
+    if materials:
+        lines.append("**Uploaded materials (with coach feedback).**")
+        for mat in materials:
+            fname = mat.get("filename") or "(file)"
+            lines.append(f"- {fname}")
+            if mat.get("feedback"):
+                # Indent the feedback under the file.
+                for fline in str(mat["feedback"]).splitlines():
+                    lines.append(f"  > {fline}")
+        lines.append("")
+
+    return "\n".join(lines) + "\n"
 
 
 @router.post("/export", response_model=ExportResponse)
@@ -170,9 +306,17 @@ async def export_proposal(req: Proposal) -> ExportResponse:
         md += _fmt(label, enrollment.get(key))
 
     md += "## 4. Course Design\n\n"
+    md += _fmt("Course Essential Question", design.get("essential_question"))
+    md += _fmt("Course-Level Learning Objectives", design.get("learning_objectives"))
+    md += _fmt("Course Structure / Arc", design.get("course_structure"))
+
+    modules = design.get("modules") or []
+    if modules:
+        md += "### Modules\n\n"
+        for i, mod in enumerate(modules, start=1):
+            md += _render_module(i, mod)
+
     for label, key in [
-        ("Learning Objectives", "learning_objectives"),
-        ("Course Structure", "course_structure"),
         ("Technology Needs", "technology_needs"),
         ("Grading Scheme and Assessment Methods", "assessment_methods"),
         ("Student Support", "student_support"),
@@ -180,28 +324,6 @@ async def export_proposal(req: Proposal) -> ExportResponse:
         ("CQI & Staying Current", "cqi"),
     ]:
         md += _fmt(label, design.get(key))
-
-    outline = design.get("curriculum_outline") or []
-    if outline:
-        md += "### Preliminary Curriculum Outline\n\n"
-        md += "| Module | Hours | Faculty | Format | Topics | Required Readings | Recommended | Assignments |\n"
-        md += "|---|---|---|---|---|---|---|---|\n"
-        for row in outline:
-            cells = [
-                str(row.get(k, "")).replace("|", "\\|").replace("\n", " ")
-                for k in [
-                    "module_name",
-                    "contact_hours",
-                    "faculty",
-                    "format",
-                    "topics",
-                    "required_readings",
-                    "recommended_readings",
-                    "assignments",
-                ]
-            ]
-            md += "| " + " | ".join(cells) + " |\n"
-        md += "\n"
 
     md += "## 5. Financials\n\n"
     md += _fmt("Financial Overview / Business Plan", financials.get("financial_overview"))

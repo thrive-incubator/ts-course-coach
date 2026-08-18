@@ -34,3 +34,7 @@ tsconfig.tsbuildinfo
 
 # Tools
 .gstack/
+
+# Saved proposals (user data)
+backend/data/
+

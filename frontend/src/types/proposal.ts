@@ -1,3 +1,61 @@
+export const BLOOM_LEVELS = [
+  'Remember',
+  'Understand',
+  'Apply',
+  'Analyze',
+  'Evaluate',
+  'Create',
+] as const;
+export type BloomLevel = typeof BLOOM_LEVELS[number];
+
+export const INTERACTIVE_FEATURES = [
+  'Simulation',
+  'Case study',
+  'Generative AI chat',
+  'Role play',
+  'Peer review',
+  'Live discussion',
+  'Reflection journal',
+  'Real-world artifact',
+  'Guest expert',
+  'Field observation',
+  'Polling / live check-ins',
+] as const;
+export type InteractiveFeature = typeof INTERACTIVE_FEATURES[number];
+
+export interface ModuleObjective {
+  text: string;
+  bloom: BloomLevel | '';
+}
+
+export interface ModuleMaterial {
+  id: string;
+  filename: string;
+  uploaded_at: string;
+  feedback: string;
+  status: 'reviewing' | 'ready' | 'failed';
+  error?: string;
+}
+
+export interface CourseModule {
+  id: string;
+  module_name: string;
+  contact_hours: string;
+  faculty: string;
+  format: string;
+  essential_question: string;
+  objectives: ModuleObjective[];
+  critical_information: string;
+  engagement_opportunities: string;
+  interactive_features: string[];
+  interactive_features_notes: string;
+  required_readings: string;
+  recommended_readings: string;
+  assignments: string;
+  materials: ModuleMaterial[];
+}
+
+/** Legacy row shape from the earlier flat-table curriculum. Kept for hydration. */
 export interface CurriculumRow {
   module_name: string;
   contact_hours: string;
@@ -38,9 +96,10 @@ export interface Proposal {
     admissions_criteria: string;
   };
   design: {
+    essential_question: string;
     learning_objectives: string;
     course_structure: string;
-    curriculum_outline: CurriculumRow[];
+    modules: CourseModule[];
     technology_needs: string;
     assessment_methods: string;
     student_support: string;
@@ -78,9 +137,10 @@ export const EMPTY_PROPOSAL: Proposal = {
     admissions_criteria: '',
   },
   design: {
+    essential_question: '',
     learning_objectives: '',
     course_structure: '',
-    curriculum_outline: [],
+    modules: [],
     technology_needs: '',
     assessment_methods: '',
     student_support: '',
@@ -90,16 +150,46 @@ export const EMPTY_PROPOSAL: Proposal = {
   financials: { financial_overview: '' },
 };
 
-export const EMPTY_ROW: CurriculumRow = {
-  module_name: '',
-  contact_hours: '',
-  faculty: '',
-  format: '',
-  topics: '',
-  required_readings: '',
-  recommended_readings: '',
-  assignments: '',
-};
+export function newModuleId(): string {
+  return 'mod_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+export function newMaterialId(): string {
+  return 'mat_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+export function emptyModule(): CourseModule {
+  return {
+    id: newModuleId(),
+    module_name: '',
+    contact_hours: '',
+    faculty: '',
+    format: '',
+    essential_question: '',
+    objectives: [],
+    critical_information: '',
+    engagement_opportunities: '',
+    interactive_features: [],
+    interactive_features_notes: '',
+    required_readings: '',
+    recommended_readings: '',
+    assignments: '',
+    materials: [],
+  };
+}
+
+export function migrateLegacyRow(row: Partial<CurriculumRow>): CourseModule {
+  const m = emptyModule();
+  m.module_name = row.module_name || '';
+  m.contact_hours = row.contact_hours || '';
+  m.faculty = row.faculty || '';
+  m.format = row.format || '';
+  m.critical_information = row.topics || '';
+  m.required_readings = row.required_readings || '';
+  m.recommended_readings = row.recommended_readings || '';
+  m.assignments = row.assignments || '';
+  return m;
+}
 
 export const STEP_TITLES = [
   'Contact',

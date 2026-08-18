@@ -1,4 +1,4 @@
-import type { Proposal } from '../types/proposal';
+import type { CourseModule, Proposal } from '../types/proposal';
 
 let API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -16,7 +16,6 @@ async function initApiBase() {
   }
 }
 
-// Kick off (best-effort) on module load; components can still fetch before this resolves.
 initApiBase();
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -29,6 +28,15 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`);
   }
   if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`);
+  }
   return res.json();
 }
 
@@ -58,6 +66,61 @@ export function getCoachSuggestion(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export interface ModuleReview {
+  strengths: string[];
+  gaps: string[];
+  suggestions: string[];
+  bloom_diagnosis: string;
+  interactive_ideas: string[];
+}
+
+export function reviewModule(payload: {
+  module: CourseModule;
+  course_essential_question: string;
+  course_context: Record<string, string>;
+}) {
+  return apiFetch<ModuleReview>('/coach/module', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface MaterialReview {
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  bloom_diagnosis: string;
+  engagement_ideas: string[];
+  extracted_chars: number;
+}
+
+export function reviewMaterial(payload: {
+  file: File;
+  module: CourseModule;
+  course_essential_question: string;
+  course_context: Record<string, string>;
+}) {
+  const fd = new FormData();
+  fd.append('file', payload.file);
+  fd.append('module', JSON.stringify(payload.module));
+  fd.append('course_essential_question', payload.course_essential_question || '');
+  fd.append('course_context', JSON.stringify(payload.course_context || {}));
+  return apiUpload<MaterialReview>('/coach/material', fd);
+}
+
+// ---- Save & resume --------------------------------------------------------
+
+export function saveProposal(proposal: Proposal, id?: string) {
+  return apiFetch<{ id: string }>('/proposal/save', {
+    method: 'POST',
+    body: JSON.stringify({ id, data: proposal }),
+  });
+}
+
+export function loadProposal(id: string) {
+  return apiFetch<Proposal>(`/proposal/load/${encodeURIComponent(id)}`);
 }
 
 // ---- Marketing Brief -------------------------------------------------------
