@@ -18,8 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="${SCRIPT_DIR}/backend"
 FRONTEND_DIR="${SCRIPT_DIR}/frontend"
-BACKEND_PORT=8080
-FRONTEND_PORT=5173
+BACKEND_PORT="${BACKEND_PORT:-8080}"
+FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
 # ---- Parse arguments ----
 USE_TUNNEL=true
