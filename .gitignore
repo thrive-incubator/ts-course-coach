@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+
+# Environment & secrets
+.env
+.env.local
+service_account.json
+sa-key.json
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build
+*.log
+logs/
+tsconfig.tsbuildinfo
+
+# Docker
+*.tar
+
+# Tools
+.gstack/

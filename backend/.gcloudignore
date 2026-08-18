@@ -1,0 +1,14 @@
+.env
+.env.example
+service_account.json
+credentials.json
+venv/
+__pycache__/
+*.pyc
+*.pyo
+logs/
+tests/
+.pytest_cache/
+.git/
+.dockerignore
+.gcloudignore

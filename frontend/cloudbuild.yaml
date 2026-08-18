@@ -1,0 +1,21 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_API_URL=${_VITE_API_URL}'
+      - '-t'
+      - '${_IMAGE_NAME}'
+      - '.'
+    timeout: 1200s
+
+images:
+  - '${_IMAGE_NAME}'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _IMAGE_NAME: gcr.io/${PROJECT_ID}/ts-ts-course-coach-frontend
+  _VITE_API_URL: http://localhost:8080/api/v1

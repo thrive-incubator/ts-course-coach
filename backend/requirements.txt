@@ -1,0 +1,19 @@
+# Web framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+pydantic-settings==2.13.1
+
+# Firebase / Firestore
+google-cloud-firestore==2.20.1
+
+# HTTP client
+httpx==0.28.1
+
+# Auth
+PyJWT==2.10.1
+
+# Utilities
+python-dotenv==1.1.0
+
+# Gemini
+google-genai
