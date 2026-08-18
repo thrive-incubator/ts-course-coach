@@ -443,6 +443,13 @@ export default function Wizard() {
                     fieldLabel="Student support"
                     currentValue={proposal.design.student_support}
                     courseContext={courseContext}
+                    onApplyExample={(v) =>
+                      updateSection('design', {
+                        student_support: proposal.design.student_support
+                          ? proposal.design.student_support + '\n\n' + v
+                          : v,
+                      })
+                    }
                   />
                 }
               >
@@ -468,6 +475,13 @@ export default function Wizard() {
                     fieldLabel="CQI & staying current"
                     currentValue={proposal.design.cqi}
                     courseContext={courseContext}
+                    onApplyExample={(v) =>
+                      updateSection('design', {
+                        cqi: proposal.design.cqi
+                          ? proposal.design.cqi + '\n\n' + v
+                          : v,
+                      })
+                    }
                   />
                 }
               >
