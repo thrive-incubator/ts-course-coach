@@ -196,6 +196,21 @@ export function analyzePricing(payload: {
   });
 }
 
+// ---- Import from Course Conceptualization Tool ---------------------------
+
+export interface ImportResponse {
+  imported: Partial<Proposal>;
+  fields_extracted: string[];
+  extracted_chars: number;
+}
+
+export function importConceptualization(payload: { file?: File; text?: string }) {
+  const fd = new FormData();
+  if (payload.file) fd.append('file', payload.file);
+  fd.append('text', payload.text || '');
+  return apiUpload<ImportResponse>('/proposal/import', fd);
+}
+
 // ---- Export ---------------------------------------------------------------
 
 export function exportProposal(proposal: Proposal) {

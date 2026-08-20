@@ -10,11 +10,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
+from app.api.coach import MAX_TEXT_CHARS, MAX_UPLOAD_BYTES, _extract_text
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,12 @@ class MarketingBrief(BaseModel):
 
 class ExportResponse(BaseModel):
     markdown: str
+
+
+class ImportResponse(BaseModel):
+    imported: dict[str, Any]
+    fields_extracted: list[str]
+    extracted_chars: int
 
 
 # ---- Save & resume ---------------------------------------------------------
@@ -329,3 +336,143 @@ async def export_proposal(req: Proposal) -> ExportResponse:
     md += _fmt("Financial Overview / Business Plan", financials.get("financial_overview"))
 
     return ExportResponse(markdown=md)
+
+
+# ---- Import from Course Conceptualization Tool ----------------------------
+
+_IMPORT_SYSTEM = (
+    "You extract structured course-proposal data from a Thrive Academy 'Course "
+    "Conceptualization Tool' response that a faculty member submitted (or from their "
+    "raw course notes). Preserve the faculty member's exact wording — do not rewrite, "
+    "summarize, or invent content. If a field is not present, leave it as an empty "
+    "string. Return valid JSON only."
+)
+
+
+def _import_prompt(text: str) -> str:
+    return (
+        "Below is the extracted text from a completed Course Conceptualization form "
+        "(or faculty course notes). Map the content into the JSON schema shown. "
+        "Preserve wording verbatim in each field (do not paraphrase). If a field is "
+        "not present in the text, use an empty string ''. Do not invent content.\n\n"
+        f"EXTRACTED TEXT:\n---\n{text}\n---\n\n"
+        "Notes on specific fields:\n"
+        "  - course_type: pick the exact label from the form when present: "
+        "'Year-Long Certificate Course', 'Semester-Long Certificate Course', "
+        "'Mini-Course', 'Microlearning Course', or the faculty's 'Other' answer verbatim.\n"
+        "  - course_format: comma-separated list of the selected formats from: "
+        "'In-Person Synchronous', 'Virtual Synchronous', 'Asynchronous', plus any 'Other' verbatim.\n"
+        "  - primary_thrive_domain, if present, should be appended to course_description as "
+        "'(Primary Thrive Domain: <domain>)' so it isn't lost.\n"
+        "  - 'Anything Else' content, if present, should be appended to competitive_landscape "
+        "as a new paragraph prefixed 'Additional notes: '.\n\n"
+        "Return strict JSON with this shape:\n"
+        "{\n"
+        '  "primary_contact": {"name": "", "email": ""},\n'
+        '  "course_overview": {\n'
+        '    "course_name": "",\n'
+        '    "course_description": "",\n'
+        '    "course_type": "",\n'
+        '    "course_format": "",\n'
+        '    "faculty": "",\n'
+        '    "intended_audiences": "",\n'
+        '    "cohort_size": "",\n'
+        '    "duration": "",\n'
+        '    "contact_hours": "",\n'
+        '    "tuition": ""\n'
+        "  },\n"
+        '  "rationale": {\n'
+        '    "needs_statement": "",\n'
+        '    "evidence_of_demand": "",\n'
+        '    "competitive_landscape": ""\n'
+        "  }\n"
+        "}"
+    )
+
+
+_ALLOWED_CONTACT = {"name", "email"}
+_ALLOWED_OVERVIEW = {
+    "course_name", "course_description", "course_type", "course_format",
+    "faculty", "intended_audiences", "cohort_size", "duration",
+    "contact_hours", "tuition",
+}
+_ALLOWED_RATIONALE = {"needs_statement", "evidence_of_demand", "competitive_landscape"}
+
+
+def _filter_section(section: Any, allowed: set[str]) -> dict[str, str]:
+    if not isinstance(section, dict):
+        return {}
+    out: dict[str, str] = {}
+    for k, v in section.items():
+        if k in allowed and isinstance(v, (str, int, float)) and str(v).strip():
+            out[k] = str(v).strip()
+    return out
+
+
+@router.post("/import", response_model=ImportResponse)
+async def import_proposal(
+    file: UploadFile | None = File(None),
+    text: str = Form(""),
+) -> ImportResponse:
+    """Parse a completed Course Conceptualization form (file upload or pasted text) into proposal fields."""
+    settings = get_settings()
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=503, detail="Gemini API key not configured")
+
+    body_text = text or ""
+    if file is not None and file.filename:
+        raw = await file.read()
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"File too large: {len(raw)} bytes (max 15MB)")
+        body_text = _extract_text(file.filename, raw)
+
+    body_text = re.sub(r"\n{3,}", "\n\n", body_text or "").strip()
+    if not body_text:
+        raise HTTPException(status_code=422, detail="No text found to import — upload a file or paste content.")
+
+    truncated = body_text[:MAX_TEXT_CHARS]
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model_flash,
+            contents=_import_prompt(truncated),
+            config=types.GenerateContentConfig(
+                system_instruction=_IMPORT_SYSTEM,
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("gemini import call failed")
+        raise HTTPException(status_code=502, detail=f"Gemini error: {exc}") from exc
+
+    resp_text = (response.text or "").strip()
+    try:
+        data = json.loads(resp_text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail=f"Gemini returned non-JSON: {resp_text[:200]}") from exc
+
+    imported: dict[str, Any] = {}
+    fields_extracted: list[str] = []
+
+    contact = _filter_section(data.get("primary_contact"), _ALLOWED_CONTACT)
+    if contact:
+        imported["primary_contact"] = contact
+        fields_extracted.extend(f"primary_contact.{k}" for k in contact)
+
+    overview = _filter_section(data.get("course_overview"), _ALLOWED_OVERVIEW)
+    if overview:
+        imported["course_overview"] = overview
+        fields_extracted.extend(f"course_overview.{k}" for k in overview)
+
+    rationale = _filter_section(data.get("rationale"), _ALLOWED_RATIONALE)
+    if rationale:
+        imported["rationale"] = rationale
+        fields_extracted.extend(f"rationale.{k}" for k in rationale)
+
+    return ImportResponse(
+        imported=imported,
+        fields_extracted=fields_extracted,
+        extracted_chars=len(body_text),
+    )

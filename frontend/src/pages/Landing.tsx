@@ -1,18 +1,30 @@
 import { useNavigate } from 'react-router-dom';
 import { Field, TextInput, Textarea } from '../components/Field';
+import ImportConceptualization from '../components/ImportConceptualization';
 import SaveResume from '../components/SaveResume';
 import { useProposal } from '../hooks/useProposal';
+import type { Proposal } from '../types/proposal';
 
 export default function Landing() {
   const {
     proposal,
-    updateSection,
+    setProposal,
     remoteId,
     remoteStatus,
     publishRemote,
     loadingRemote,
+    updateSection,
   } = useProposal();
   const navigate = useNavigate();
+
+  function mergeImported(imported: Partial<Proposal>) {
+    setProposal((prev) => ({
+      ...prev,
+      primary_contact: { ...prev.primary_contact, ...(imported.primary_contact || {}) },
+      course_overview: { ...prev.course_overview, ...(imported.course_overview || {}) },
+      rationale: { ...prev.rationale, ...(imported.rationale || {}) },
+    }));
+  }
 
   const hasBasics =
     proposal.course_overview.course_name.trim().length > 0 &&
@@ -43,6 +55,8 @@ export default function Landing() {
       )}
 
       <main className="mx-auto max-w-4xl px-6 py-10">
+        <ImportConceptualization proposal={proposal} onImport={mergeImported} />
+
         <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
             Start here
