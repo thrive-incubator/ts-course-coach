@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import AuthMenu from './AuthMenu';
 import SaveResume from './SaveResume';
 
 interface Props {
@@ -70,6 +71,15 @@ export default function WorkspaceHeader({
           >
             Preview
           </button>
+          <AuthMenu
+            onLoadProposal={(id) => {
+              const u = new URL(window.location.href);
+              u.searchParams.set('id', id);
+              u.pathname = '/';
+              u.hash = '';
+              window.location.assign(u.toString());
+            }}
+          />
           <SaveResume
             remoteId={remoteId}
             remoteStatus={remoteStatus}

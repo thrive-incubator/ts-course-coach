@@ -10,11 +10,12 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
+from app.api.auth import add_proposal_to_user, get_current_email
 from app.api.coach import MAX_TEXT_CHARS, MAX_UPLOAD_BYTES, _extract_text
 from app.core.config import get_settings
 
@@ -68,11 +69,16 @@ def _storage_path(proposal_id: str) -> Path:
 
 
 @router.post("/save", response_model=SaveResponse)
-async def save_proposal(req: SaveRequest) -> SaveResponse:
+async def save_proposal(
+    req: SaveRequest,
+    signed_in_email: str | None = Depends(get_current_email),
+) -> SaveResponse:
     """Persist a proposal to the server and return its id.
 
     Provide the existing id to update; omit to mint a new one. Payload is
     stored as-is on the filesystem; ids are opaque tokens (treat like share URLs).
+    If the caller is signed in (Bearer token), the proposal is also associated
+    with their email so it shows up in "My proposals" on any device they use.
     """
     if req.id and not ID_RE.match(req.id):
         raise HTTPException(status_code=400, detail="Invalid id shape")
@@ -82,16 +88,36 @@ async def save_proposal(req: SaveRequest) -> SaveResponse:
         # secrets.token_urlsafe uses url-safe chars; sanity-check.
         raise HTTPException(status_code=500, detail="Generated id failed validation")
 
+    # Preserve owner across updates: if the file already has an owner and the
+    # current caller isn't that owner, keep the original owner.
+    owner_email: str | None = signed_in_email
+    existing_path = _storage_path(proposal_id)
+    if existing_path.exists():
+        try:
+            existing = json.loads(existing_path.read_text())
+            prior_owner = existing.get("owner_email")
+            if isinstance(prior_owner, str) and prior_owner:
+                owner_email = prior_owner
+        except (OSError, json.JSONDecodeError):
+            pass
+
     payload = {
         "id": proposal_id,
         "updated_at": int(time.time()),
+        "owner_email": owner_email,
         "data": req.data,
     }
     try:
-        _storage_path(proposal_id).write_text(json.dumps(payload, ensure_ascii=False))
+        existing_path.write_text(json.dumps(payload, ensure_ascii=False))
     except OSError as exc:
         logger.exception("proposal save failed")
         raise HTTPException(status_code=500, detail=f"Save failed: {exc}") from exc
+
+    if signed_in_email:
+        try:
+            add_proposal_to_user(signed_in_email, proposal_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("failed to associate proposal %s with user", proposal_id)
 
     return SaveResponse(id=proposal_id)
 

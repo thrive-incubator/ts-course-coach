@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.api import coach, config_route, pricing, proposal
+from app.api import auth, coach, config_route, pricing, proposal
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -62,6 +62,7 @@ app.add_middleware(
 API_V1_PREFIX = "/api/v1"
 
 app.include_router(config_route.router, prefix=API_V1_PREFIX)
+app.include_router(auth.router, prefix=API_V1_PREFIX)
 app.include_router(coach.router, prefix=API_V1_PREFIX)
 app.include_router(pricing.router, prefix=API_V1_PREFIX)
 app.include_router(proposal.router, prefix=API_V1_PREFIX)

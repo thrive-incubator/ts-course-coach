@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import AuthMenu from '../components/AuthMenu';
 import { Field, TextInput, Textarea } from '../components/Field';
 import ImportConceptualization from '../components/ImportConceptualization';
 import SaveResume from '../components/SaveResume';
@@ -40,11 +41,22 @@ export default function Landing() {
             </div>
             <h1 className="text-xl font-bold text-slate-900">Course Builder</h1>
           </div>
-          <SaveResume
-            remoteId={remoteId}
-            remoteStatus={remoteStatus}
-            onPublish={publishRemote}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <AuthMenu
+              onLoadProposal={(id) => {
+                const u = new URL(window.location.href);
+                u.searchParams.set('id', id);
+                u.pathname = '/';
+                u.hash = '';
+                window.location.assign(u.toString());
+              }}
+            />
+            <SaveResume
+              remoteId={remoteId}
+              remoteStatus={remoteStatus}
+              onPublish={publishRemote}
+            />
+          </div>
         </div>
       </header>
 
@@ -194,8 +206,9 @@ export default function Landing() {
         )}
 
         <p className="mt-8 text-center text-xs text-slate-500">
-          Your progress auto-saves in this browser. Click <strong>Save &amp; get link</strong> at the
-          top for a URL you can bookmark or send to yourself and use on any device.
+          Your progress auto-saves in this browser. <strong>Sign in</strong> at the top to save
+          your proposals to your account so you can come back on any device — or use
+          <strong> Save &amp; get link</strong> for a shareable URL.
         </p>
       </main>
     </div>

@@ -1,4 +1,5 @@
 import type { CourseModule, Proposal } from '../types/proposal';
+import { getAuthToken } from '../hooks/useAuth';
 
 let API_BASE = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -18,10 +19,19 @@ async function initApiBase() {
 
 initApiBase();
 
+function authHeader(): Record<string, string> {
+  const t = getAuthToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader(),
+      ...(options.headers || {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -32,12 +42,43 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 async function apiUpload<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', body: form });
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    body: form,
+    headers: { ...authHeader() },
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`);
   }
   return res.json();
+}
+
+// ---- Auth ----------------------------------------------------------------
+
+export function signIn(email: string) {
+  return apiFetch<{ token: string; email: string }>('/auth/signin', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function signOut() {
+  return apiFetch<{ ok: boolean }>('/auth/signout', { method: 'POST' });
+}
+
+export function whoAmI() {
+  return apiFetch<{ email: string }>('/auth/me');
+}
+
+export interface MyProposalSummary {
+  id: string;
+  course_name: string;
+  updated_at: number;
+}
+
+export function listMyProposals() {
+  return apiFetch<{ proposals: MyProposalSummary[] }>('/auth/proposals');
 }
 
 export function checkHealth() {
