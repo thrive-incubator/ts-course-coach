@@ -153,6 +153,49 @@ export function generateMarketingBrief(proposal: Proposal) {
   });
 }
 
+// ---- Pricing intelligence -------------------------------------------------
+
+export interface PricingComparable {
+  program: string;
+  institution: string;
+  format: string;
+  duration: string;
+  price_range: string;
+  why_comparable: string;
+}
+
+export interface PricingScenario {
+  label: string;
+  price: string;
+  tradeoff: string;
+}
+
+export interface PricingResponse {
+  suggested_range_low: string;
+  suggested_range_high: string;
+  positioning_note: string;
+  comparables: PricingComparable[];
+  scenarios: PricingScenario[];
+  caveats: string;
+}
+
+export function analyzePricing(payload: {
+  course_name: string;
+  course_description: string;
+  course_type: string;
+  course_format: string;
+  intended_audiences: string;
+  duration: string;
+  contact_hours: string;
+  cohort_size: string;
+  current_tuition: string;
+}) {
+  return apiFetch<PricingResponse>('/pricing/analyze', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 // ---- Export ---------------------------------------------------------------
 
 export function exportProposal(proposal: Proposal) {
