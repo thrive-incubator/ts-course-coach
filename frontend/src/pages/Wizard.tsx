@@ -277,22 +277,6 @@ export default function Wizard() {
               <Field
                 label="Needs statement"
                 hint="What practitioner or systemic gap does this course close?"
-                coach={
-                  <CoachButton
-                    section="rationale"
-                    field="needs_statement"
-                    fieldLabel="Needs statement"
-                    currentValue={proposal.rationale.needs_statement}
-                    courseContext={courseContext}
-                    onApplyExample={(v) =>
-                      updateSection('rationale', {
-                        needs_statement: proposal.rationale.needs_statement
-                          ? proposal.rationale.needs_statement + '\n\n' + v
-                          : v,
-                      })
-                    }
-                  />
-                }
               >
                 <Textarea
                   value={proposal.rationale.needs_statement}
@@ -303,22 +287,6 @@ export default function Wizard() {
               <Field
                 label="Evidence of demand"
                 hint="Waitlists, surveys, workforce reports, employer requests, CEU shifts…"
-                coach={
-                  <CoachButton
-                    section="rationale"
-                    field="evidence_of_demand"
-                    fieldLabel="Evidence of demand"
-                    currentValue={proposal.rationale.evidence_of_demand}
-                    courseContext={courseContext}
-                    onApplyExample={(v) =>
-                      updateSection('rationale', {
-                        evidence_of_demand: proposal.rationale.evidence_of_demand
-                          ? proposal.rationale.evidence_of_demand + '\n\n' + v
-                          : v,
-                      })
-                    }
-                  />
-                }
               >
                 <Textarea
                   value={proposal.rationale.evidence_of_demand}
@@ -329,22 +297,6 @@ export default function Wizard() {
               <Field
                 label="Competitive landscape"
                 hint="Every learner has alternatives — name 2-3 and your distinct wedge."
-                coach={
-                  <CoachButton
-                    section="rationale"
-                    field="competitive_landscape"
-                    fieldLabel="Competitive landscape"
-                    currentValue={proposal.rationale.competitive_landscape}
-                    courseContext={courseContext}
-                    onApplyExample={(v) =>
-                      updateSection('rationale', {
-                        competitive_landscape: proposal.rationale.competitive_landscape
-                          ? proposal.rationale.competitive_landscape + '\n\n' + v
-                          : v,
-                      })
-                    }
-                  />
-                }
               >
                 <Textarea
                   value={proposal.rationale.competitive_landscape}
