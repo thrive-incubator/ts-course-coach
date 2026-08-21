@@ -25,6 +25,7 @@ export default function Wizard() {
     addModule,
     removeModule,
     setProposal,
+    reset,
     remoteId,
     remoteStatus,
     publishRemote,
@@ -32,6 +33,15 @@ export default function Wizard() {
   } = useProposal();
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
+
+  function clearForm() {
+    const ok = window.confirm(
+      'Clear the entire proposal? This wipes every field on every step and cannot be undone.'
+    );
+    if (!ok) return;
+    reset();
+    setStep(0);
+  }
 
   const courseContext = useMemo(
     () => ({
@@ -83,6 +93,13 @@ export default function Wizard() {
               className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
             >
               Preview proposal
+            </button>
+            <button
+              type="button"
+              onClick={clearForm}
+              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50"
+            >
+              Clear form
             </button>
           </div>
         </div>
