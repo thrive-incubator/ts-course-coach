@@ -15,6 +15,9 @@ export default function Landing() {
     publishRemote,
     loadingRemote,
     updateSection,
+    remoteError,
+    retryLoad,
+    startNew,
   } = useProposal();
   const navigate = useNavigate();
 
@@ -55,6 +58,7 @@ export default function Landing() {
               remoteId={remoteId}
               remoteStatus={remoteStatus}
               onPublish={publishRemote}
+              onNew={startNew}
             />
           </div>
         </div>
@@ -63,6 +67,20 @@ export default function Landing() {
       {loadingRemote && (
         <div className="bg-emerald-50 py-2 text-center text-xs text-emerald-800">
           Loading your saved work…
+        </div>
+      )}
+      {remoteError && (
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
+          <span>{remoteError}</span>
+          {remoteStatus === 'error' && (
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="rounded border border-amber-700 px-2 py-0.5 font-medium hover:bg-amber-100"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 

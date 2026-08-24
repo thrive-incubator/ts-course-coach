@@ -10,6 +10,7 @@ interface Props {
   remoteId: string | null;
   remoteStatus: 'idle' | 'saving' | 'saved' | 'error';
   onPublish: () => Promise<string>;
+  onNew?: () => void;
 }
 
 const ACCENTS = {
@@ -35,6 +36,7 @@ export default function WorkspaceHeader({
   remoteId,
   remoteStatus,
   onPublish,
+  onNew,
 }: Props) {
   const navigate = useNavigate();
   const styles = ACCENTS[accent];
@@ -84,6 +86,7 @@ export default function WorkspaceHeader({
             remoteId={remoteId}
             remoteStatus={remoteStatus}
             onPublish={onPublish}
+            onNew={onNew}
           />
         </div>
       </div>

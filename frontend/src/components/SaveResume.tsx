@@ -4,9 +4,10 @@ interface Props {
   remoteId: string | null;
   remoteStatus: 'idle' | 'saving' | 'saved' | 'error';
   onPublish: () => Promise<string>;
+  onNew?: () => void;
 }
 
-export default function SaveResume({ remoteId, remoteStatus, onPublish }: Props) {
+export default function SaveResume({ remoteId, remoteStatus, onPublish, onNew }: Props) {
   const [showDialog, setShowDialog] = useState(false);
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -61,6 +62,23 @@ export default function SaveResume({ remoteId, remoteStatus, onPublish }: Props)
               ? 'Save failed'
               : '✓ Cloud-saved'}
           </span>
+        )}
+        {onNew && (
+          <button
+            type="button"
+            onClick={() => {
+              const ok = window.confirm(
+                remoteId
+                  ? 'Start a new proposal? Your current one stays saved under its link.'
+                  : 'Start a new proposal? Unsaved work in this draft will be cleared.'
+              );
+              if (ok) onNew();
+            }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+            title="Start a fresh proposal"
+          >
+            New
+          </button>
         )}
         <button
           type="button"

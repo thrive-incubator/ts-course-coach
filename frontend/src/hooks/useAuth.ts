@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { signIn as apiSignIn, signOut as apiSignOut, whoAmI } from '../services/api';
+import { SIGNED_IN_EVENT, SIGNED_OUT_EVENT } from './authEvents';
 
 const TOKEN_KEY = 'ts-course-coach:auth-token:v1';
 const EMAIL_KEY = 'ts-course-coach:auth-email:v1';
@@ -40,7 +41,9 @@ export function useAuth(): AuthState {
   const [error, setError] = useState<string | null>(null);
 
   // Validate the persisted token on mount — if the server restarted or
-  // sessions/ was wiped, quietly sign out so the UI is honest about state.
+  // sessions/ was wiped (401), quietly sign out so the UI is honest about
+  // state. Network blips / 5xx keep the token: dropping it would make the
+  // next autosave anonymous and orphan the proposal from the account.
   useEffect(() => {
     if (!token) return;
     let alive = true;
@@ -54,8 +57,10 @@ export function useAuth(): AuthState {
           // ignore
         }
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         if (!alive) return;
+        const msg = e instanceof Error ? e.message : '';
+        if (!msg.startsWith('401')) return;
         setToken(null);
         setEmail(null);
         try {
@@ -85,6 +90,7 @@ export function useAuth(): AuthState {
         // ignore
       }
       setStatus('idle');
+      window.dispatchEvent(new Event(SIGNED_IN_EVENT));
     } catch (e) {
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Sign-in failed.');
@@ -106,6 +112,7 @@ export function useAuth(): AuthState {
     } catch {
       // ignore
     }
+    window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
   }, []);
 
   return { email, token, status, error, signIn, signOut };
