@@ -10,7 +10,7 @@
 
 ### Backend
 - **FastAPI** - Python web framework
-- **Google Firestore** - NoSQL database
+- **Local JSON files** under `backend/data/` (proposals, users, sessions) — ephemeral on Cloud Run; Firestore is planned but not yet used
 - **Gemini AI** - Google AI
 
 ### Frontend
