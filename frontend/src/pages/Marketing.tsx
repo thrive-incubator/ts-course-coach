@@ -23,6 +23,9 @@ export default function Marketing() {
     remoteStatus,
     publishRemote,
     loadingRemote,
+    remoteError,
+    retryLoad,
+    startNew,
   } = useProposal();
   const navigate = useNavigate();
 
@@ -33,9 +36,14 @@ export default function Marketing() {
       course_format: proposal.course_overview.course_format,
       intended_audiences: proposal.course_overview.intended_audiences,
       duration: proposal.course_overview.duration,
+      course_description: proposal.course_overview.course_description,
+      contact_hours: proposal.course_overview.contact_hours,
+      cohort_size: proposal.course_overview.cohort_size,
+      tuition: proposal.course_overview.tuition,
       essential_question: proposal.design.essential_question,
+      learning_objectives: proposal.design.learning_objectives,
     }),
-    [proposal.course_overview, proposal.design.essential_question]
+    [proposal.course_overview, proposal.design.essential_question, proposal.design.learning_objectives]
   );
 
   return (
@@ -48,11 +56,26 @@ export default function Marketing() {
         remoteId={remoteId}
         remoteStatus={remoteStatus}
         onPublish={publishRemote}
+        onNew={startNew}
       />
 
       {loadingRemote && (
         <div className="bg-emerald-50 py-2 text-center text-xs text-emerald-800">
           Loading your saved work…
+        </div>
+      )}
+      {remoteError && (
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
+          <span>{remoteError}</span>
+          {remoteStatus === 'error' && (
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="rounded border border-amber-700 px-2 py-0.5 font-medium hover:bg-amber-100"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -210,6 +233,17 @@ export default function Marketing() {
               value={proposal.rationale.competitive_landscape}
               onChange={(v) => updateSection('rationale', { competitive_landscape: v })}
               rows={5}
+            />
+          </Field>
+
+          <Field
+            label="Additional notes"
+            hint="Anything else from your conceptualization work that doesn't fit the fields above."
+          >
+            <Textarea
+              value={proposal.rationale.additional_notes}
+              onChange={(v) => updateSection('rationale', { additional_notes: v })}
+              rows={4}
             />
           </Field>
         </section>

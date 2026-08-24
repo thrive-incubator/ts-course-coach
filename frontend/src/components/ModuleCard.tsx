@@ -8,7 +8,13 @@ import {
   type ModuleMaterial,
   type ModuleObjective,
 } from '../types/proposal';
-import { reviewMaterial, reviewModule, type ModuleReview } from '../services/api';
+import {
+  humanError,
+  reviewMaterial,
+  reviewModule,
+  type ModuleReview,
+  type SiblingModule,
+} from '../services/api';
 import { Field, TextInput, Textarea } from './Field';
 
 const BLOOM_COLORS: Record<BloomLevel, string> = {
@@ -27,7 +33,15 @@ interface Props {
   module: CourseModule;
   courseEssentialQuestion: string;
   courseContext: Record<string, string>;
+  courseLearningObjectives?: string;
+  siblingModules?: SiblingModule[];
   onChange: (patch: Partial<CourseModule>) => void;
+  /**
+   * Functional materials update — reads the latest list, so concurrent uploads/removals
+   * aren't lost. Optional only so legacy callers (Wizard) still compile; falls back to a
+   * snapshot-based onChange when absent.
+   */
+  onPatchMaterials?: (fn: (prev: ModuleMaterial[]) => ModuleMaterial[]) => void;
   onRemove: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
@@ -38,7 +52,10 @@ export default function ModuleCard({
   module,
   courseEssentialQuestion,
   courseContext,
+  courseLearningObjectives = '',
+  siblingModules = [],
   onChange,
+  onPatchMaterials,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -48,6 +65,12 @@ export default function ModuleCard({
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploading = module.materials.some((m) => m.status === 'reviewing');
+
+  const patchMaterials = (fn: (prev: ModuleMaterial[]) => ModuleMaterial[]) => {
+    if (onPatchMaterials) onPatchMaterials(fn);
+    else onChange({ materials: fn(module.materials) });
+  };
 
   const filledCount = useMemo(() => {
     let c = 0;
@@ -89,10 +112,12 @@ export default function ModuleCard({
         module,
         course_essential_question: courseEssentialQuestion,
         course_context: courseContext,
+        course_learning_objectives: courseLearningObjectives,
+        sibling_modules: siblingModules,
       });
       setReview(r);
     } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Could not reach the coach.');
+      setReviewError(humanError(e, 'Could not reach the coach.'));
     } finally {
       setReviewing(false);
     }
@@ -106,8 +131,7 @@ export default function ModuleCard({
       feedback: '',
       status: 'reviewing',
     };
-    const withPending = [...module.materials, mat];
-    onChange({ materials: withPending });
+    patchMaterials((prev) => [...prev, mat]);
     try {
       const res = await reviewMaterial({
         file,
@@ -125,20 +149,21 @@ export default function ModuleCard({
         (res.engagement_ideas.length
           ? `**Engagement ideas.**\n- ${res.engagement_ideas.join('\n- ')}\n`
           : '');
-      const updatedList = [...module.materials, { ...mat, feedback, status: 'ready' as const }];
-      onChange({ materials: updatedList });
+      patchMaterials((prev) =>
+        prev.map((m) => (m.id === mat.id ? { ...m, feedback, status: 'ready' as const } : m))
+      );
     } catch (e) {
-      const err = e instanceof Error ? e.message : 'upload / review failed';
-      const updatedList = [
-        ...module.materials,
-        { ...mat, feedback: '', status: 'failed' as const, error: err },
-      ];
-      onChange({ materials: updatedList });
+      const err = humanError(e, 'upload / review failed');
+      patchMaterials((prev) =>
+        prev.map((m) =>
+          m.id === mat.id ? { ...m, feedback: '', status: 'failed' as const, error: err } : m
+        )
+      );
     }
   }
 
   function removeMaterial(id: string) {
-    onChange({ materials: module.materials.filter((m) => m.id !== id) });
+    patchMaterials((prev) => prev.filter((m) => m.id !== id));
   }
 
   return (
@@ -427,14 +452,16 @@ export default function ModuleCard({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                disabled={uploading}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Upload file
+                {uploading ? 'Reviewing…' : 'Upload file'}
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept={ACCEPT_EXT}
+                disabled={uploading}
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];

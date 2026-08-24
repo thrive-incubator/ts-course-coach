@@ -90,6 +90,7 @@ export interface Proposal {
     needs_statement: string;
     evidence_of_demand: string;
     competitive_landscape: string;
+    additional_notes: string;
   };
   enrollment: {
     recruitment_and_marketing: string;
@@ -131,6 +132,7 @@ export const EMPTY_PROPOSAL: Proposal = {
     needs_statement: '',
     evidence_of_demand: '',
     competitive_landscape: '',
+    additional_notes: '',
   },
   enrollment: {
     recruitment_and_marketing: '',

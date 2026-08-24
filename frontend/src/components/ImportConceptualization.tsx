@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { importConceptualization } from '../services/api';
+import { humanError, importConceptualization } from '../services/api';
 import type { Proposal } from '../types/proposal';
 
 interface Props {
@@ -15,6 +15,7 @@ export default function ImportConceptualization({ proposal, onImport }: Props) {
   const [message, setMessage] = useState('');
   const [pasted, setPasted] = useState('');
   const [lastFields, setLastFields] = useState<string[]>([]);
+  const [inferredFields, setInferredFields] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const nonEmptyOverviewFields = Object.entries(proposal.course_overview).filter(
@@ -44,6 +45,7 @@ export default function ImportConceptualization({ proposal, onImport }: Props) {
       }
       onImport(res.imported, res.fields_extracted);
       setLastFields(res.fields_extracted);
+      setInferredFields(res.inferred_fields || []);
       setStatus('done');
       setMessage(
         `Pulled ${res.fields_extracted.length} field${res.fields_extracted.length === 1 ? '' : 's'} into your proposal.`
@@ -52,7 +54,7 @@ export default function ImportConceptualization({ proposal, onImport }: Props) {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e) {
       setStatus('error');
-      setMessage(e instanceof Error ? e.message : 'Import failed');
+      setMessage(humanError(e, 'Import failed'));
     }
   }
 
@@ -164,16 +166,30 @@ export default function ImportConceptualization({ proposal, onImport }: Props) {
               </div>
               <div className="mt-0.5">{message}</div>
               {status === 'done' && lastFields.length > 0 && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs text-emerald-800">
-                    Show the {lastFields.length} field{lastFields.length === 1 ? '' : 's'} that were filled
-                  </summary>
-                  <ul className="mt-1 list-inside list-disc text-xs text-emerald-800">
-                    {lastFields.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
+                <div className="mt-2 text-xs text-emerald-800">
+                  <div className="font-semibold">Fields pulled in:</div>
+                  <ul className="mt-1 list-inside list-disc">
+                    {lastFields.map((f) => {
+                      const inferred = inferredFields.includes(f);
+                      return (
+                        <li key={f} className={inferred ? 'text-amber-800' : undefined}>
+                          {f}
+                          {inferred && (
+                            <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                              inferred
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
-                </details>
+                </div>
+              )}
+              {status === 'done' && inferredFields.length > 0 && (
+                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                  <span className="font-semibold">Check these — inferred, not quoted:</span>{' '}
+                  {inferredFields.join(', ')}
+                </div>
               )}
             </div>
           )}

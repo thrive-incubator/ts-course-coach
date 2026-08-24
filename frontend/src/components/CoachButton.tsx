@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { getCoachSuggestion, type CoachResponse } from '../services/api';
+import { getCoachSuggestion, humanError, type CoachResponse } from '../services/api';
+
+const TONE_STYLES: Record<CoachResponse['tone'], string> = {
+  encouraging: 'bg-slate-100 text-slate-700 border-slate-200',
+  challenging: 'bg-amber-100 text-amber-900 border-amber-200',
+  celebratory: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+};
 
 interface Props {
   section: string;
@@ -36,7 +42,7 @@ export default function CoachButton({
       });
       setResult(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not reach the coach.');
+      setError(humanError(e, 'Could not reach the coach.'));
     } finally {
       setLoading(false);
     }
@@ -82,6 +88,16 @@ export default function CoachButton({
 
           {result && (
             <>
+              {result.tone && (
+                <span
+                  className={
+                    'mb-2 inline-block rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ' +
+                    (TONE_STYLES[result.tone] || TONE_STYLES.encouraging)
+                  }
+                >
+                  {result.tone}
+                </span>
+              )}
               <p className="mb-3 whitespace-pre-wrap text-slate-800">{result.suggestion}</p>
               {result.examples.length > 0 && (
                 <div className="space-y-2">

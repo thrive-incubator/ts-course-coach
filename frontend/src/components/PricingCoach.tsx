@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { analyzePricing, type PricingResponse } from '../services/api';
+import { analyzePricing, humanError, type PricingResponse } from '../services/api';
 
 interface Props {
   courseName: string;
@@ -40,7 +40,7 @@ export default function PricingCoach(props: Props) {
       });
       setResult(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not analyze pricing.');
+      setError(humanError(e, 'Could not analyze pricing.'));
     } finally {
       setLoading(false);
     }

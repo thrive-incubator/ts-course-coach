@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { generateMarketingBrief, type MarketingBrief as Brief } from '../services/api';
+import { generateMarketingBrief, humanError, type MarketingBrief as Brief } from '../services/api';
 import { useProposal } from '../hooks/useProposal';
 
 export default function MarketingBrief() {
@@ -16,7 +16,7 @@ export default function MarketingBrief() {
       const b = await generateMarketingBrief(proposal);
       setBrief(b);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not generate the brief.');
+      setError(humanError(e, 'Could not generate the brief.'));
     } finally {
       setLoading(false);
     }
@@ -52,6 +52,12 @@ export default function MarketingBrief() {
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
+        {error && (
+          <div className="mb-6 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+            {error}
+          </div>
+        )}
+
         {!brief && !loading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <h2 className="mb-2 text-2xl font-bold text-slate-900">Generate marketing brief</h2>
@@ -69,11 +75,12 @@ export default function MarketingBrief() {
             <button
               type="button"
               onClick={generate}
-              className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700"
+              disabled={loading}
+              className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
             >
               Generate brief ✨
             </button>
-            {error && <p className="mt-4 text-sm text-rose-700">{error}</p>}
+            <p className="mt-3 text-xs text-slate-500">Generation takes about 20 seconds.</p>
           </div>
         )}
 
@@ -81,7 +88,8 @@ export default function MarketingBrief() {
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
             <div className="mb-2 text-lg font-semibold text-slate-900">Building your brief…</div>
             <p className="text-sm text-slate-500">
-              Reading your proposal, then generating personas, positioning, and copy.
+              Reading your proposal, then generating personas, positioning, and copy. This usually
+              takes about 20 seconds.
             </p>
           </div>
         )}
@@ -185,14 +193,16 @@ export default function MarketingBrief() {
               </ul>
             </Section>
 
-            <div className="flex justify-center pt-4">
+            <div className="flex flex-col items-center gap-2 pt-4">
               <button
                 type="button"
                 onClick={generate}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                disabled={loading}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Regenerate brief
+                {loading ? 'Regenerating…' : 'Regenerate brief'}
               </button>
+              <p className="text-xs text-slate-500">Takes about 20 seconds.</p>
             </div>
           </div>
         )}

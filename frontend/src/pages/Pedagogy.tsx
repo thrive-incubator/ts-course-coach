@@ -5,7 +5,7 @@ import ModuleCard from '../components/ModuleCard';
 import WorkspaceHeader from '../components/WorkspaceHeader';
 import { Field, Select, TextInput, Textarea } from '../components/Field';
 import { useProposal } from '../hooks/useProposal';
-import { emptyModule } from '../types/proposal';
+import { emptyModule, type ModuleMaterial } from '../types/proposal';
 
 const COURSE_TYPES = [
   'Year-Long Certificate',
@@ -28,6 +28,9 @@ export default function Pedagogy() {
     remoteStatus,
     publishRemote,
     loadingRemote,
+    remoteError,
+    retryLoad,
+    startNew,
   } = useProposal();
   const navigate = useNavigate();
 
@@ -38,10 +41,38 @@ export default function Pedagogy() {
       course_format: proposal.course_overview.course_format,
       intended_audiences: proposal.course_overview.intended_audiences,
       duration: proposal.course_overview.duration,
+      course_description: proposal.course_overview.course_description,
+      contact_hours: proposal.course_overview.contact_hours,
+      cohort_size: proposal.course_overview.cohort_size,
+      tuition: proposal.course_overview.tuition,
       essential_question: proposal.design.essential_question,
+      learning_objectives: proposal.design.learning_objectives,
     }),
-    [proposal.course_overview, proposal.design.essential_question]
+    [proposal.course_overview, proposal.design.essential_question, proposal.design.learning_objectives]
   );
+
+  const siblingModules = useMemo(
+    () =>
+      proposal.design.modules.map((m, i) => ({
+        index: i + 1,
+        module_name: m.module_name,
+        contact_hours: m.contact_hours,
+      })),
+    [proposal.design.modules]
+  );
+
+  /** Functional update of one module's materials, reading the latest state (not a stale snapshot). */
+  function patchMaterials(moduleId: string, fn: (prev: ModuleMaterial[]) => ModuleMaterial[]) {
+    setProposal((prev) => ({
+      ...prev,
+      design: {
+        ...prev.design,
+        modules: prev.design.modules.map((m) =>
+          m.id === moduleId ? { ...m, materials: fn(m.materials) } : m
+        ),
+      },
+    }));
+  }
 
   function moveModule(from: number, to: number) {
     if (to < 0 || to >= proposal.design.modules.length) return;
@@ -61,11 +92,26 @@ export default function Pedagogy() {
         remoteId={remoteId}
         remoteStatus={remoteStatus}
         onPublish={publishRemote}
+        onNew={startNew}
       />
 
       {loadingRemote && (
         <div className="bg-emerald-50 py-2 text-center text-xs text-emerald-800">
           Loading your saved work…
+        </div>
+      )}
+      {remoteError && (
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">
+          <span>{remoteError}</span>
+          {remoteStatus === 'error' && (
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="rounded border border-amber-700 px-2 py-0.5 font-medium hover:bg-amber-100"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -260,7 +306,10 @@ export default function Pedagogy() {
               module={m}
               courseEssentialQuestion={proposal.design.essential_question}
               courseContext={courseContext}
+              courseLearningObjectives={proposal.design.learning_objectives}
+              siblingModules={siblingModules.map((s) => ({ ...s, is_current: s.index === i + 1 }))}
               onChange={(patch) => updateModule(m.id, patch)}
+              onPatchMaterials={(fn) => patchMaterials(m.id, fn)}
               onRemove={() => removeModule(m.id)}
               onMoveUp={i > 0 ? () => moveModule(i, i - 1) : undefined}
               onMoveDown={

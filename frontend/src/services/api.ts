@@ -24,8 +24,60 @@ function authHeader(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+const REQUEST_TIMEOUT_MS = 90_000;
+
+/** Run fetch with an AbortController timeout; rethrows aborts as Error('timeout'). */
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw new Error('timeout');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Build the error thrown for a non-OK response. Always `${status} ${message}` —
+ * callers such as useAuth/useProposal rely on the numeric prefix (startsWith('401')
+ * / startsWith('404')); display code should pass it through humanError().
+ */
+async function responseError(res: Response): Promise<Error> {
+  const body = await res.text().catch(() => '');
+  let detail = '';
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as { detail?: unknown }).detail === 'string'
+    ) {
+      detail = (parsed as { detail: string }).detail;
+    }
+  } catch {
+    // not JSON
+  }
+  const message = detail || res.statusText || (body ? body.slice(0, 200) : 'Request failed');
+  return new Error(`${res.status} ${message}`);
+}
+
+/** Turn an API error into a user-facing string (strips the numeric status prefix). */
+export function humanError(e: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  const raw = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
+  if (!raw) return fallback;
+  if (raw === 'timeout') return 'The coach took too long to answer. Please try again.';
+  if (/failed to fetch|networkerror|load failed/i.test(raw)) {
+    return "Can't reach the server — check your connection.";
+  }
+  const stripped = raw.replace(/^\d{3} /, '').trim();
+  return stripped || fallback;
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -33,24 +85,18 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
       ...(options.headers || {}),
     },
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`);
-  }
+  if (!res.ok) throw await responseError(res);
   if (res.status === 204) return undefined as T;
   return res.json();
 }
 
 async function apiUpload<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, {
     method: 'POST',
     body: form,
     headers: { ...authHeader() },
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 200)}` : ''}`);
-  }
+  if (!res.ok) throw await responseError(res);
   return res.json();
 }
 
@@ -94,7 +140,7 @@ export function checkHealth() {
 export interface CoachResponse {
   suggestion: string;
   examples: string[];
-  tone: string;
+  tone: 'encouraging' | 'challenging' | 'celebratory';
 }
 
 export function getCoachSuggestion(payload: {
@@ -117,10 +163,19 @@ export interface ModuleReview {
   interactive_ideas: string[];
 }
 
+export interface SiblingModule {
+  index: number;
+  module_name: string;
+  contact_hours: string;
+  is_current: boolean;
+}
+
 export function reviewModule(payload: {
   module: CourseModule;
   course_essential_question: string;
   course_context: Record<string, string>;
+  course_learning_objectives: string;
+  sibling_modules: SiblingModule[];
 }) {
   return apiFetch<ModuleReview>('/coach/module', {
     method: 'POST',
@@ -158,6 +213,20 @@ export function saveProposal(proposal: Proposal, id?: string) {
     method: 'POST',
     body: JSON.stringify({ id, data: proposal }),
   });
+}
+
+/** Fire-and-forget save that survives navigation/tab close (fetch keepalive). */
+export function saveProposalKeepalive(proposal: Proposal, id: string) {
+  try {
+    void fetch(`${API_BASE}/proposal/save`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ id, data: proposal }),
+    });
+  } catch {
+    // best effort
+  }
 }
 
 export function loadProposal(id: string) {
@@ -242,6 +311,7 @@ export function analyzePricing(payload: {
 export interface ImportResponse {
   imported: Partial<Proposal>;
   fields_extracted: string[];
+  inferred_fields: string[];
   extracted_chars: number;
 }
 
