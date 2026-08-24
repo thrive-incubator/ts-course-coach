@@ -11,13 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from google import genai
-from google.genai import types
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth import add_proposal_to_user, get_current_email
 from app.api.coach import MAX_TEXT_CHARS, MAX_UPLOAD_BYTES, _extract_text
-from app.core.config import get_settings
+from app.core.llm import generate_json
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +35,36 @@ class SaveResponse(BaseModel):
     id: str
 
 
+class Persona(BaseModel):
+    name: str = Field(description="e.g. Mid-career IECMH consultant")
+    context: str = Field(description="1-sentence day-in-the-life")
+    trigger: str = Field(description="what makes them enroll now")
+    objection: str = Field(description="what they will hesitate on")
+
+
+class ChannelIdea(BaseModel):
+    name: str = Field(description="e.g. Zero to Three listserv")
+    why: str = Field(description="why this audience is there")
+    message_angle: str = Field(description="how to pitch there")
+
+
+class SocialCopy(BaseModel):
+    linkedin_post: str = Field(default="", description="1 short LinkedIn post in the faculty voice")
+    twitter_thread_opener: str = Field(default="", description="1 hook post for X/Twitter")
+    instagram_caption: str = Field(default="", description="1 Instagram caption")
+
+
 class MarketingBrief(BaseModel):
-    audience_personas: list[dict[str, str]]
-    value_propositions: list[str]
-    positioning_statement: str
-    headlines: list[str]
-    channels: list[dict[str, str]]
-    social_copy: dict[str, str]
-    subject_lines: list[str]
+    audience_personas: list[Persona] = Field(default_factory=list, description="2-3 personas")
+    value_propositions: list[str] = Field(default_factory=list, description="3 crisp value props, learner-outcome framed")
+    positioning_statement: str = Field(
+        default="",
+        description="For [audience] who [struggle/goal], [Course Name] is the [category] that [distinct benefit], unlike [alternative]",
+    )
+    headlines: list[str] = Field(default_factory=list, description="5 headline options, varied angles")
+    channels: list[ChannelIdea] = Field(default_factory=list, description="4-6 concrete channels")
+    social_copy: SocialCopy = Field(default_factory=SocialCopy)
+    subject_lines: list[str] = Field(default_factory=list, description="3 email subject lines")
 
 
 class ExportResponse(BaseModel):
@@ -54,6 +74,7 @@ class ExportResponse(BaseModel):
 class ImportResponse(BaseModel):
     imported: dict[str, Any]
     fields_extracted: list[str]
+    inferred_fields: list[str] = []
     extracted_chars: int
 
 
@@ -143,71 +164,81 @@ _BRIEF_SYSTEM = (
     "learning platform for early-childhood, mental-health, and workforce practitioners. You "
     "translate a course proposal into a launch-ready marketing brief. Be specific — no generic "
     "'lifelong learners' language. Ground everything in the course's actual audience and value. "
-    "Return valid JSON only."
+    "The proposal's own intended audience, needs statement and competitive landscape take "
+    "precedence over any general assumption about who Thrive serves; if the course is for a "
+    "different audience, follow the course. Return valid JSON only."
 )
+
+
+def _render_for_brief(p: dict[str, Any]) -> str:
+    """Marketing-relevant subset of the proposal as labelled prose (not a raw JSON dump)."""
+    course = p.get("course_overview", {}) or {}
+    rationale = p.get("rationale", {}) or {}
+    enrollment = p.get("enrollment", {}) or {}
+    design = p.get("design", {}) or {}
+    modules = design.get("modules") or []
+
+    def line(label: str, value: Any) -> str:
+        v = str(value or "").strip()
+        return f"{label}: {v}\n" if v else ""
+
+    out = ""
+    out += line("Course name", course.get("course_name"))
+    out += line("Description", course.get("course_description"))
+    out += line("Type", " / ".join(x for x in [course.get("course_type"), course.get("course_type_other")] if x))
+    out += line("Format", " / ".join(x for x in [course.get("course_format"), course.get("course_format_other")] if x))
+    out += line("Faculty", course.get("faculty"))
+    out += line("Intended audiences", course.get("intended_audiences"))
+    out += line("Duration", course.get("duration"))
+    out += line("Contact hours", course.get("contact_hours"))
+    out += line("Cohort size", course.get("cohort_size"))
+    out += line("Tuition", course.get("tuition"))
+    out += "\n"
+    out += line("Needs statement", rationale.get("needs_statement"))
+    out += line("Evidence of demand", rationale.get("evidence_of_demand"))
+    out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Additional notes", rationale.get("additional_notes"))
+    out += line("Recruitment & marketing plan so far", enrollment.get("recruitment_and_marketing"))
+    out += line("Admissions criteria", enrollment.get("admissions_criteria"))
+    out += "\n"
+    out += line("Course essential question", design.get("essential_question"))
+    out += line("Course-level learning objectives", design.get("learning_objectives"))
+    out += line("Course structure", design.get("course_structure"))
+    out += line("Assessment", design.get("assessment_methods"))
+    if modules:
+        names = [
+            f"{i}. {m.get('module_name') or '(untitled)'}"
+            + (f" ({m.get('contact_hours')} hrs)" if m.get("contact_hours") else "")
+            for i, m in enumerate(modules, start=1)
+        ]
+        out += "Modules:\n  " + "\n  ".join(names) + "\n"
+    return out.strip() or "(proposal is empty so far)"
 
 
 def _brief_prompt(proposal: dict[str, Any]) -> str:
     return (
         "Below is a faculty-drafted course proposal. Generate a launch-ready marketing brief.\n\n"
-        f"PROPOSAL:\n{json.dumps(proposal, indent=2)}\n\n"
-        "Return strict JSON with this shape:\n"
-        "{\n"
-        '  "audience_personas": [\n'
-        '    {"name": "e.g. Mid-career IECMH consultant", "context": "1-sentence day-in-the-life", "trigger": "what makes them enroll now", "objection": "what they will hesitate on"}\n'
-        "  ],  // 2-3 personas\n"
-        '  "value_propositions": ["...", "...", "..."],  // 3 crisp value props, learner-outcome framed\n'
-        '  "positioning_statement": "For [audience] who [struggle/goal], [Course Name] is the [category] that [distinct benefit], unlike [alternative]",\n'
-        '  "headlines": ["...", "...", "...", "...", "..."],  // 5 headline options, varied angles\n'
-        '  "channels": [\n'
-        '    {"name": "e.g. Zero to Three listserv", "why": "why this audience is there", "message_angle": "how to pitch there"}\n'
-        "  ],  // 4-6 concrete channels\n"
-        '  "social_copy": {\n'
-        '    "linkedin_post": "1 short LinkedIn post from the faculty voice",\n'
-        '    "twitter_thread_opener": "1 hook tweet",\n'
-        '    "instagram_caption": "1 IG caption"\n'
-        "  },\n"
-        '  "subject_lines": ["...", "...", "..."]  // 3 email subject lines\n'
-        "}"
+        f"PROPOSAL:\n{_render_for_brief(proposal)}\n\n"
+        "Return strict JSON with: audience_personas (2-3, each with name / context / trigger / "
+        "objection), value_propositions (3, learner-outcome framed), positioning_statement "
+        "('For [audience] who [struggle/goal], [Course Name] is the [category] that [distinct "
+        "benefit], unlike [alternative]'), headlines (5, varied angles), channels (4-6 concrete "
+        "places this audience already is, each with name / why / message_angle), social_copy "
+        "(linkedin_post, twitter_thread_opener, instagram_caption) and subject_lines (3). "
+        "Pick channels for THIS course's audience — e.g. a professional association listserv, a "
+        "state chapter newsletter, a LinkedIn group — not generic ones."
     )
 
 
 @router.post("/marketing-brief", response_model=MarketingBrief)
 async def marketing_brief(req: Proposal) -> MarketingBrief:
     """Turn a full course proposal into a launch-ready marketing brief."""
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=503, detail="Gemini API key not configured")
-
-    client = genai.Client(api_key=settings.gemini_api_key)
-    try:
-        response = client.models.generate_content(
-            model=settings.gemini_model_flash,
-            contents=_brief_prompt(req.data),
-            config=types.GenerateContentConfig(
-                system_instruction=_BRIEF_SYSTEM,
-                response_mime_type="application/json",
-                temperature=0.6,
-            ),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("gemini brief call failed")
-        raise HTTPException(status_code=502, detail=f"Gemini error: {exc}") from exc
-
-    text = (response.text or "").strip()
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=502, detail=f"Gemini returned non-JSON: {text[:200]}") from exc
-
-    return MarketingBrief(
-        audience_personas=data.get("audience_personas", []),
-        value_propositions=data.get("value_propositions", []),
-        positioning_statement=data.get("positioning_statement", ""),
-        headlines=data.get("headlines", []),
-        channels=data.get("channels", []),
-        social_copy=data.get("social_copy", {}),
-        subject_lines=data.get("subject_lines", []),
+    return await generate_json(
+        endpoint="proposal/marketing-brief",
+        system=_BRIEF_SYSTEM,
+        contents=_brief_prompt(req.data),
+        schema=MarketingBrief,
+        temperature=0.6,
     )
 
 
@@ -328,6 +359,7 @@ async def export_proposal(req: Proposal) -> ExportResponse:
         ("Needs Statement", "needs_statement"),
         ("Evidence of Demand", "evidence_of_demand"),
         ("Competitive Landscape", "competitive_landscape"),
+        ("Additional Notes", "additional_notes"),
     ]:
         md += _fmt(label, rationale.get(key))
 
@@ -366,6 +398,11 @@ async def export_proposal(req: Proposal) -> ExportResponse:
 
 # ---- Import from Course Conceptualization Tool ----------------------------
 
+# Must match the dropdown options in frontend/src/pages/Marketing.tsx / Pedagogy.tsx
+# exactly, or an imported value shows as "Select…" in the UI.
+COURSE_TYPES = ["Year-Long Certificate", "Semester-Long Certificate", "Mini-Course", "Microlearning", "Other"]
+COURSE_FORMATS = ["In-Person", "Virtual Sync", "Async", "Other"]
+
 _IMPORT_SYSTEM = (
     "You extract structured course-proposal data from a Thrive Academy 'Course "
     "Conceptualization Tool' response that a faculty member submitted (or from their "
@@ -375,64 +412,70 @@ _IMPORT_SYSTEM = (
 )
 
 
+class _ImportContact(BaseModel):
+    name: str = ""
+    email: str = ""
+
+
+class _ImportOverview(BaseModel):
+    course_name: str = ""
+    course_description: str = ""
+    course_type: str = Field(default="", description="One of: " + ", ".join(COURSE_TYPES) + " — or empty")
+    course_type_other: str = Field(default="", description="The faculty's own wording when course_type is 'Other'")
+    course_format: str = Field(default="", description="One of: " + ", ".join(COURSE_FORMATS) + " — or empty")
+    course_format_other: str = Field(default="", description="The faculty's own wording when course_format is 'Other'")
+    faculty: str = ""
+    intended_audiences: str = ""
+    cohort_size: str = ""
+    duration: str = ""
+    contact_hours: str = ""
+    tuition: str = ""
+
+
+class _ImportRationale(BaseModel):
+    needs_statement: str = ""
+    evidence_of_demand: str = ""
+    competitive_landscape: str = ""
+    additional_notes: str = Field(default="", description="The form's 'Anything Else' answer, verbatim")
+
+
+class _ImportLLM(BaseModel):
+    primary_contact: _ImportContact = Field(default_factory=_ImportContact)
+    course_overview: _ImportOverview = Field(default_factory=_ImportOverview)
+    rationale: _ImportRationale = Field(default_factory=_ImportRationale)
+    inferred_fields: list[str] = Field(
+        default_factory=list,
+        description="Dotted keys (e.g. 'course_overview.course_type') whose value you had to infer, "
+        "normalise or map rather than quote verbatim from the text. Empty if everything was quoted.",
+    )
+
+
 def _import_prompt(text: str) -> str:
     return (
         "Below is the extracted text from a completed Course Conceptualization form "
-        "(or faculty course notes). Map the content into the JSON schema shown. "
+        "(or faculty course notes). Map the content into the JSON schema. "
         "Preserve wording verbatim in each field (do not paraphrase). If a field is "
         "not present in the text, use an empty string ''. Do not invent content.\n\n"
         f"EXTRACTED TEXT:\n---\n{text}\n---\n\n"
         "Notes on specific fields:\n"
-        "  - course_type: pick the exact label from the form when present: "
-        "'Year-Long Certificate Course', 'Semester-Long Certificate Course', "
-        "'Mini-Course', 'Microlearning Course', or the faculty's 'Other' answer verbatim.\n"
-        "  - course_format: comma-separated list of the selected formats from: "
-        "'In-Person Synchronous', 'Virtual Synchronous', 'Asynchronous', plus any 'Other' verbatim.\n"
+        f"  - course_type: map the form's answer to exactly one of {COURSE_TYPES!r}. "
+        "The form's labels may be longer (e.g. 'Year-Long Certificate Course' -> 'Year-Long Certificate', "
+        "'Microlearning Course' -> 'Microlearning'). If it matches none, use 'Other' and put the "
+        "faculty's wording in course_type_other.\n"
+        f"  - course_format: pick exactly one of {COURSE_FORMATS!r} — the primary format if several "
+        "were ticked ('In-Person Synchronous' -> 'In-Person', 'Virtual Synchronous' -> 'Virtual Sync', "
+        "'Asynchronous' -> 'Async'). If several were ticked, list all of them verbatim in "
+        "course_format_other so nothing is lost.\n"
         "  - primary_thrive_domain, if present, should be appended to course_description as "
         "'(Primary Thrive Domain: <domain>)' so it isn't lost.\n"
-        "  - 'Anything Else' content, if present, should be appended to competitive_landscape "
-        "as a new paragraph prefixed 'Additional notes: '.\n\n"
-        "Return strict JSON with this shape:\n"
-        "{\n"
-        '  "primary_contact": {"name": "", "email": ""},\n'
-        '  "course_overview": {\n'
-        '    "course_name": "",\n'
-        '    "course_description": "",\n'
-        '    "course_type": "",\n'
-        '    "course_format": "",\n'
-        '    "faculty": "",\n'
-        '    "intended_audiences": "",\n'
-        '    "cohort_size": "",\n'
-        '    "duration": "",\n'
-        '    "contact_hours": "",\n'
-        '    "tuition": ""\n'
-        "  },\n"
-        '  "rationale": {\n'
-        '    "needs_statement": "",\n'
-        '    "evidence_of_demand": "",\n'
-        '    "competitive_landscape": ""\n'
-        "  }\n"
-        "}"
+        "  - 'Anything Else' content, if present, goes verbatim into rationale.additional_notes.\n"
+        "  - inferred_fields: list every dotted key where you mapped, normalised, or guessed "
+        "rather than copied — course_type and course_format almost always belong here."
     )
 
 
-_ALLOWED_CONTACT = {"name", "email"}
-_ALLOWED_OVERVIEW = {
-    "course_name", "course_description", "course_type", "course_format",
-    "faculty", "intended_audiences", "cohort_size", "duration",
-    "contact_hours", "tuition",
-}
-_ALLOWED_RATIONALE = {"needs_statement", "evidence_of_demand", "competitive_landscape"}
-
-
-def _filter_section(section: Any, allowed: set[str]) -> dict[str, str]:
-    if not isinstance(section, dict):
-        return {}
-    out: dict[str, str] = {}
-    for k, v in section.items():
-        if k in allowed and isinstance(v, (str, int, float)) and str(v).strip():
-            out[k] = str(v).strip()
-    return out
+def _clean_section(section: BaseModel) -> dict[str, str]:
+    return {k: str(v).strip() for k, v in section.model_dump().items() if isinstance(v, str) and str(v).strip()}
 
 
 @router.post("/import", response_model=ImportResponse)
@@ -441,15 +484,11 @@ async def import_proposal(
     text: str = Form(""),
 ) -> ImportResponse:
     """Parse a completed Course Conceptualization form (file upload or pasted text) into proposal fields."""
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=503, detail="Gemini API key not configured")
-
     body_text = text or ""
     if file is not None and file.filename:
         raw = await file.read()
         if len(raw) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"File too large: {len(raw)} bytes (max 15MB)")
+            raise HTTPException(status_code=413, detail=f"File too large ({len(raw) // (1024*1024)} MB). Max is 15 MB.")
         body_text = _extract_text(file.filename, raw)
 
     body_text = re.sub(r"\n{3,}", "\n\n", body_text or "").strip()
@@ -458,47 +497,42 @@ async def import_proposal(
 
     truncated = body_text[:MAX_TEXT_CHARS]
 
-    client = genai.Client(api_key=settings.gemini_api_key)
-    try:
-        response = client.models.generate_content(
-            model=settings.gemini_model_flash,
-            contents=_import_prompt(truncated),
-            config=types.GenerateContentConfig(
-                system_instruction=_IMPORT_SYSTEM,
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("gemini import call failed")
-        raise HTTPException(status_code=502, detail=f"Gemini error: {exc}") from exc
+    data = await generate_json(
+        endpoint="proposal/import",
+        system=_IMPORT_SYSTEM,
+        contents=_import_prompt(truncated),
+        schema=_ImportLLM,
+        temperature=0.1,
+        # Extraction is verbatim mapping — low thinking is enough and faster.
+        thinking_level="low",
+    )
 
-    resp_text = (response.text or "").strip()
-    try:
-        data = json.loads(resp_text)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=502, detail=f"Gemini returned non-JSON: {resp_text[:200]}") from exc
+    # Enforce the dropdown vocabulary regardless of what the model did.
+    ov = data.course_overview
+    if ov.course_type and ov.course_type not in COURSE_TYPES:
+        ov.course_type_other = ov.course_type_other or ov.course_type
+        ov.course_type = "Other"
+    if ov.course_format and ov.course_format not in COURSE_FORMATS:
+        ov.course_format_other = ov.course_format_other or ov.course_format
+        ov.course_format = "Other"
 
     imported: dict[str, Any] = {}
     fields_extracted: list[str] = []
+    for key, section in (
+        ("primary_contact", data.primary_contact),
+        ("course_overview", data.course_overview),
+        ("rationale", data.rationale),
+    ):
+        cleaned = _clean_section(section)
+        if cleaned:
+            imported[key] = cleaned
+            fields_extracted.extend(f"{key}.{k}" for k in cleaned)
 
-    contact = _filter_section(data.get("primary_contact"), _ALLOWED_CONTACT)
-    if contact:
-        imported["primary_contact"] = contact
-        fields_extracted.extend(f"primary_contact.{k}" for k in contact)
-
-    overview = _filter_section(data.get("course_overview"), _ALLOWED_OVERVIEW)
-    if overview:
-        imported["course_overview"] = overview
-        fields_extracted.extend(f"course_overview.{k}" for k in overview)
-
-    rationale = _filter_section(data.get("rationale"), _ALLOWED_RATIONALE)
-    if rationale:
-        imported["rationale"] = rationale
-        fields_extracted.extend(f"rationale.{k}" for k in rationale)
+    inferred = [f for f in data.inferred_fields if f in fields_extracted]
 
     return ImportResponse(
         imported=imported,
         fields_extracted=fields_extracted,
+        inferred_fields=inferred,
         extracted_chars=len(body_text),
     )

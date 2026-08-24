@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Gemini
     gemini_api_key: str = ""
     gemini_model_pro: str = "gemini-3-pro-preview"
-    gemini_model_flash: str = "gemini-2.5-flash"
+    gemini_model_flash: str = "gemini-3.7-flash"
 
     model_config = {
         "env_file": ".env",
