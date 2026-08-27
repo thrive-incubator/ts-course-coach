@@ -265,6 +265,62 @@ export function generateMarketingBrief(proposal: Proposal) {
   });
 }
 
+// ---- Marketing package (AI-drafted from faculty content) -----------------
+
+export interface OnePagerDraft {
+  headline: string;
+  subhead: string;
+  elevator_pitch: string;
+  who_its_for: string[];
+  what_youll_leave_with: string[];
+  format_and_dates: string;
+  tuition_line: string;
+  faculty_line: string;
+  why_now: string;
+  cta: string;
+}
+
+export interface ChannelDraft {
+  channel: string;
+  body: string;
+  length_note: string;
+}
+
+export interface InfoSessionOutline {
+  title: string;
+  duration_minutes: number;
+  agenda: string[];
+  talking_points: string[];
+  audience_questions: string[];
+}
+
+export interface AnnouncementEmail {
+  subject: string;
+  preview: string;
+  body: string;
+}
+
+export interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+export interface MarketingPackage {
+  one_pager: OnePagerDraft;
+  channel_drafts: ChannelDraft[];
+  info_session: InfoSessionOutline;
+  announcement_email: AnnouncementEmail;
+  georgetown_snippet: string;
+  faq: FaqEntry[];
+}
+
+export function generateMarketingPackage(proposal: Proposal) {
+  return apiFetch<MarketingPackage>('/proposal/marketing-package', {
+    method: 'POST',
+    body: JSON.stringify({ data: proposal }),
+  });
+}
+
 // ---- Social media marketing plan -----------------------------------------
 
 export interface SocialPost {

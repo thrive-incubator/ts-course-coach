@@ -244,6 +244,214 @@ async def marketing_brief(req: Proposal) -> MarketingBrief:
     )
 
 
+# ---- Marketing package (AI-drafted from faculty's content) ----------------
+
+_PACKAGE_SYSTEM = (
+    "You are a senior instructional-marketing writer for Thrive Academy — a CEU-accredited "
+    "learning platform for early-childhood, mental-health, and workforce practitioners. "
+    "You are drafting a complete launch kit for a specific course, using ONLY the content "
+    "the faculty member has provided in their proposal (course overview, needs statement, "
+    "essential question, module outlines, uploaded conceptualization notes, talking points). "
+    "Every claim, outcome, format detail, and audience descriptor must be traceable to what "
+    "the faculty wrote. Never invent faculty credentials, endorsements, partner organizations, "
+    "or outcomes the proposal does not state. If the proposal is thin on a required element, "
+    "use a short bracketed placeholder like [Faculty to add specific example] rather than "
+    "fabricating. Write in a warm, confident, human voice — no marketing cliches, no hype, "
+    "no em dashes (rewrite any sentence that would need one). Return valid JSON only."
+)
+
+
+class OnePager(BaseModel):
+    headline: str = Field(description="6-10 word hook that names the audience and the shift")
+    subhead: str = Field(description="1 sentence, 15-25 words, that expands the hook")
+    elevator_pitch: str = Field(description="2-4 sentences summarizing why this course exists and what learners walk away with")
+    who_its_for: list[str] = Field(default_factory=list, description="3-5 short bullet descriptors of the ideal learner")
+    what_youll_leave_with: list[str] = Field(default_factory=list, description="4-6 concrete outcomes / capabilities, learner-first phrasing")
+    format_and_dates: str = Field(default="", description="Format, duration, contact-hours summary as one line")
+    tuition_line: str = Field(default="", description="Single line covering tuition and any payment / scholarship note")
+    faculty_line: str = Field(default="", description="1-2 sentence faculty introduction pulled from the proposal")
+    why_now: str = Field(default="", description="1-2 sentence urgency framing rooted in the needs statement")
+    cta: str = Field(default="", description="Direct call-to-action line ending in Apply / Register / Contact")
+
+
+class ChannelDraft(BaseModel):
+    channel: str = Field(description="LinkedIn | X/Twitter | Facebook | Instagram | Flyer")
+    body: str = Field(description="Full post copy tuned to the channel's norms and length")
+    length_note: str = Field(default="", description="One-line reminder about the channel's cadence or use case")
+
+
+class InfoSessionOutline(BaseModel):
+    title: str = ""
+    duration_minutes: int = Field(default=45, description="Suggested session length")
+    agenda: list[str] = Field(default_factory=list, description="Ordered agenda items with time allotments")
+    talking_points: list[str] = Field(default_factory=list, description="4-6 anchor talking points the presenter should hit")
+    audience_questions: list[str] = Field(default_factory=list, description="3-5 questions the presenter should anticipate")
+
+
+class AnnouncementEmail(BaseModel):
+    subject: str = Field(description="Email subject line, 6-10 words")
+    preview: str = Field(default="", description="Short preview text (30-90 chars)")
+    body: str = Field(description="Full email body, Constant-Contact style, plain text with paragraph breaks")
+
+
+class FaqEntry(BaseModel):
+    question: str
+    answer: str
+
+
+class MarketingPackage(BaseModel):
+    one_pager: OnePager = Field(default_factory=OnePager)
+    channel_drafts: list[ChannelDraft] = Field(default_factory=list, description="LinkedIn, X/Twitter, Facebook, Instagram, Flyer")
+    info_session: InfoSessionOutline = Field(default_factory=InfoSessionOutline)
+    announcement_email: AnnouncementEmail = Field(default_factory=lambda: AnnouncementEmail(subject="", body=""))
+    georgetown_snippet: str = Field(default="", description="Neutral course description paragraph suitable for Georgetown catalog / approval routing")
+    faq: list[FaqEntry] = Field(default_factory=list, description="6-8 anticipated learner FAQs answered from the proposal")
+
+
+def _render_for_package(p: dict[str, Any]) -> str:
+    """Everything the writer needs from the faculty's proposal, in labelled prose."""
+    course = p.get("course_overview", {}) or {}
+    rationale = p.get("rationale", {}) or {}
+    enrollment = p.get("enrollment", {}) or {}
+    design = p.get("design", {}) or {}
+    extras = p.get("marketing_extras", {}) or {}
+    contact = p.get("primary_contact", {}) or {}
+    pricing_deep = p.get("pricing_deep", {}) or {}
+    modules = design.get("modules") or []
+
+    def line(label: str, value: Any) -> str:
+        v = str(value or "").strip()
+        return f"{label}: {v}\n" if v else ""
+
+    out = "COURSE BASICS:\n"
+    out += line("Course name", course.get("course_name"))
+    out += line("Description", course.get("course_description"))
+    out += line("Type", " / ".join(x for x in [course.get("course_type"), course.get("course_type_other")] if x))
+    out += line("Format", " / ".join(x for x in [course.get("course_format"), course.get("course_format_other")] if x))
+    out += line("Faculty", course.get("faculty"))
+    out += line("Intended audiences", course.get("intended_audiences"))
+    out += line("Duration", course.get("duration"))
+    out += line("Total contact hours", course.get("contact_hours"))
+    out += line("Live contact hours", course.get("contact_hours_live"))
+    out += line("Virtual-sync contact hours", course.get("contact_hours_virtual_sync"))
+    out += line("Async contact hours", course.get("contact_hours_async"))
+    out += line("Cohort size", course.get("cohort_size"))
+    out += line("Tuition", course.get("tuition"))
+    out += line("Primary contact name", contact.get("name"))
+    out += line("Primary contact email", contact.get("email"))
+
+    out += "\nRATIONALE:\n"
+    out += line("Needs statement", rationale.get("needs_statement"))
+    out += line("Evidence of demand", rationale.get("evidence_of_demand"))
+    out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Additional notes", rationale.get("additional_notes"))
+
+    out += "\nENROLLMENT:\n"
+    out += line("Recruitment plan", enrollment.get("recruitment"))
+    out += line("Marketing plan", enrollment.get("marketing"))
+    if not enrollment.get("admissions_skip"):
+        out += line("Admissions criteria", enrollment.get("admissions_criteria"))
+
+    out += "\nFACULTY MESSAGING (talking points the faculty wants amplified):\n"
+    out += line("Talking points", extras.get("messaging_talking_points"))
+    out += line("Outreach places the faculty already listed", extras.get("outreach_places"))
+    out += line("One-pager working notes", extras.get("one_pager_notes"))
+
+    out += "\nCOURSE DESIGN:\n"
+    out += line("Course essential question", design.get("essential_question"))
+    out += line("Course-level learning objectives", design.get("learning_objectives"))
+    out += line("Course structure / arc", design.get("course_structure"))
+    out += line("Assessment methods", design.get("assessment_methods"))
+    out += line("Student support", design.get("student_support"))
+
+    if modules:
+        out += "\nMODULES (in order):\n"
+        for i, m in enumerate(modules, start=1):
+            name = m.get("module_name") or f"Module {i}"
+            out += f"  {i}. {name}"
+            hrs = m.get("contact_hours")
+            if hrs:
+                out += f" ({hrs} contact hrs)"
+            out += "\n"
+            eq = m.get("essential_question")
+            if eq:
+                out += f"     Essential Q: {eq}\n"
+            objs = m.get("objectives") or []
+            for o in objs[:4]:
+                text = (o.get("text") or "").strip()
+                if text:
+                    bloom = o.get("bloom") or ""
+                    out += f"     - [{bloom}] {text}\n" if bloom else f"     - {text}\n"
+            crit = (m.get("critical_information") or "").strip()
+            if crit:
+                out += f"     Critical info: {crit[:250]}\n"
+            eng = (m.get("engagement_opportunities") or "").strip()
+            if eng:
+                out += f"     Engagement: {eng[:200]}\n"
+            feats = m.get("interactive_features") or []
+            if feats:
+                out += f"     Interactive: {', '.join(feats)}\n"
+
+    if any(pricing_deep.values() if isinstance(pricing_deep, dict) else []):
+        out += "\nPRICING NOTES:\n"
+        out += line("Fair-market notes", pricing_deep.get("fair_market_notes"))
+        out += line("Budget notes", pricing_deep.get("budget_notes"))
+        out += line("Ability-to-pay notes", pricing_deep.get("ability_to_pay_notes"))
+        out += line("Affordability plan", pricing_deep.get("affordability_gap_plan"))
+
+    return out.strip() or "(proposal is empty so far)"
+
+
+def _package_prompt(proposal: dict[str, Any]) -> str:
+    return (
+        "Below is the faculty member's course proposal — everything they have "
+        "written and uploaded so far. From THIS content alone, draft a complete "
+        "launch marketing package. Every asset should read as if the faculty "
+        "member wrote it themselves; use their language and examples where you "
+        "can. Do not invent facts.\n\n"
+        f"PROPOSAL CONTENT:\n{_render_for_package(proposal)}\n\n"
+        "Return strict JSON with:\n"
+        "- one_pager: headline (6-10 word hook), subhead (15-25 words), "
+        "elevator_pitch (2-4 sentences), who_its_for (3-5 short bullets), "
+        "what_youll_leave_with (4-6 outcome bullets in learner-first phrasing), "
+        "format_and_dates (one line), tuition_line, faculty_line (grounded in the "
+        "faculty field), why_now (rooted in the needs statement), cta.\n"
+        "- channel_drafts: exactly 5 entries, one each for LinkedIn (120-180 words, "
+        "professional voice, ends with a clear CTA and 2-3 hashtags), X/Twitter "
+        "(under 280 chars including a link placeholder), Facebook (80-150 words, "
+        "warmer tone, invitation-style), Instagram (60-120 word caption ending in "
+        "3-5 hashtags), Flyer (print-friendly copy: title, one-line hook, 3-4 "
+        "bullet outcomes, format & dates line, tuition line, apply / contact line — "
+        "use plain text formatting suitable for a designer to paste into a layout). "
+        "Include a one-line length_note per channel.\n"
+        "- info_session: title, duration_minutes (30, 45, or 60), agenda (5-7 items "
+        "with time in minutes like '10 min — welcome + who's in the room'), "
+        "talking_points (4-6 anchor points), audience_questions (3-5 likely learner "
+        "questions).\n"
+        "- announcement_email: subject (6-10 words, no clickbait), preview (30-90 "
+        "chars), body (Constant-Contact style plain-text email, greeting, 3-4 "
+        "paragraphs, sign-off in the faculty's name or [Faculty] if unavailable).\n"
+        "- georgetown_snippet: one neutral 100-140 word paragraph suitable for the "
+        "Georgetown course catalog or internal approval routing. Formal register.\n"
+        "- faq: 6-8 entries. Cover the questions this specific audience will ask — "
+        "who is this for, prerequisites, format and time commitment, live vs "
+        "async breakdown, CEUs / credits, cost and scholarships if mentioned, "
+        "faculty background, how to apply."
+    )
+
+
+@router.post("/marketing-package", response_model=MarketingPackage)
+async def marketing_package(req: Proposal) -> MarketingPackage:
+    """Draft a full marketing launch kit from the faculty's proposal content."""
+    return await generate_json(
+        endpoint="proposal/marketing-package",
+        system=_PACKAGE_SYSTEM,
+        contents=_package_prompt(req.data),
+        schema=MarketingPackage,
+        temperature=0.65,
+    )
+
+
 # ---- Social media marketing plan ------------------------------------------
 
 _SOCIAL_PLAN_SYSTEM = (

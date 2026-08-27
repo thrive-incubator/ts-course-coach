@@ -262,6 +262,43 @@ export default function Wizard() {
                   />
                 </Field>
               </div>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="text-sm font-semibold text-slate-800">Contact hours by mode</div>
+                  <div className="text-xs text-slate-500">
+                    Break the total above into how learners actually spend it.
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Field label="In-person / Live">
+                    <TextInput
+                      value={proposal.course_overview.contact_hours_live}
+                      onChange={(v) =>
+                        updateSection('course_overview', { contact_hours_live: v })
+                      }
+                      placeholder="e.g. 12"
+                    />
+                  </Field>
+                  <Field label="Virtual synchronous">
+                    <TextInput
+                      value={proposal.course_overview.contact_hours_virtual_sync}
+                      onChange={(v) =>
+                        updateSection('course_overview', { contact_hours_virtual_sync: v })
+                      }
+                      placeholder="e.g. 18"
+                    />
+                  </Field>
+                  <Field label="Asynchronous">
+                    <TextInput
+                      value={proposal.course_overview.contact_hours_async}
+                      onChange={(v) =>
+                        updateSection('course_overview', { contact_hours_async: v })
+                      }
+                      placeholder="e.g. 20"
+                    />
+                  </Field>
+                </div>
+              </div>
               <Field label="Tuition">
                 <TextInput
                   value={proposal.course_overview.tuition}

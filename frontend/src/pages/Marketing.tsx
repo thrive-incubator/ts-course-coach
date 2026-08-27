@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import CoachButton from '../components/CoachButton';
 import PricingCoach from '../components/PricingCoach';
 import WorkspaceHeader from '../components/WorkspaceHeader';
 import { Field, Select, TextInput, Textarea } from '../components/Field';
 import { useProposal } from '../hooks/useProposal';
-import { generateSocialPlan, humanError, type SocialPlan } from '../services/api';
+import {
+  generateMarketingPackage,
+  generateSocialPlan,
+  humanError,
+  type MarketingPackage,
+  type SocialPlan,
+} from '../services/api';
 
 const COURSE_TYPES = [
   'Year-Long Certificate',
@@ -28,7 +33,6 @@ export default function Marketing() {
     retryLoad,
     startNew,
   } = useProposal();
-  const navigate = useNavigate();
 
   const courseContext = useMemo(
     () => ({
@@ -333,7 +337,7 @@ export default function Marketing() {
 
         <MessagingSection courseContext={courseContext} />
         <OutreachPipelinesSection courseContext={courseContext} />
-        <CopyTemplatesSection />
+        <AutoMarketingKitSection />
 
         {/* Pricing & financials */}
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -396,36 +400,7 @@ export default function Marketing() {
 
         {/* Social Media Marketing Plan */}
         <SocialMediaPlanSection />
-        <OnePagerSection courseContext={courseContext} />
         <OutreachChecklistSection />
-
-        {/* CTA row */}
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
-          <h3 className="mb-2 text-lg font-semibold text-emerald-900">
-            Ready to turn this into a launch-ready brief?
-          </h3>
-          <p className="mb-4 text-sm text-slate-700">
-            The Coach turns your rationale + enrollment plan into audience personas, positioning,
-            headlines, channels, and social copy — everything the enrollment team needs to start
-            marketing.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/brief')}
-              className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
-            >
-              Generate marketing brief →
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/pedagogy')}
-              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Jump to course design →
-            </button>
-          </div>
-        </div>
       </main>
     </div>
   );
@@ -480,7 +455,7 @@ function SocialMediaPlanSection() {
       <h2 className="mb-1 text-xl font-bold text-slate-900">Social media marketing plan</h2>
       <p className="mb-6 text-sm text-slate-500">
         Answer the prompts, then generate a week-by-week social content calendar you can
-        download and hand to the marketing team.
+        run yourself — post-by-post copy and cadence you can drop into your channels.
       </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -819,168 +794,437 @@ function OutreachPipelinesSection({
   );
 }
 
-function CopyTemplatesSection() {
+function AutoMarketingKitSection() {
   const { proposal } = useProposal();
-  const co = proposal.course_overview;
-  const talking = proposal.marketing_extras.messaging_talking_points.trim();
-  const name = co.course_name || 'this new course';
-  const audience = co.intended_audiences || 'the folks who need it most';
-  const format = co.course_format || 'a mix of live and self-paced';
-  const duration = co.duration || 'a focused cohort window';
+  const [pkg, setPkg] = useState<MarketingPackage | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
 
-  const templates: { channel: string; body: string; note?: string }[] = [
-    {
-      channel: 'LinkedIn post',
-      body:
-        `We're launching ${name} — for ${audience}.\n\n` +
-        (talking ? talking + '\n\n' : '') +
-        `Format: ${format}. Runs: ${duration}.\n\n` +
-        `If you (or someone in your network) has been waiting for this, DM me or drop a note below and I'll send details.\n\n` +
-        `#ThriveAcademy #ContinuingEd`,
-      note:
-        'Post from a faculty member\'s personal account first — organic reach on personal posts is 5-10x higher than institutional pages.',
-    },
-    {
-      channel: 'X / Facebook post',
-      body:
-        `New at Thrive Academy: ${name}.\n\n` +
-        `Built for ${audience}. ${format}.\n\n` +
-        (talking ? talking.split('\n')[0] + '\n\n' : '') +
-        `Details + application: [link]`,
-      note: 'Keep under 280 chars on X — trim the talking-points line if you need to.',
-    },
-    {
-      channel: 'Flyer copy',
-      body:
-        `${name.toUpperCase()}\n\n` +
-        `A Thrive Academy course for ${audience}.\n\n` +
-        (talking ? talking + '\n\n' : `[Your one-line hook here]\n\n`) +
-        `Format: ${format}\n` +
-        `Dates: ${duration}\n` +
-        `Contact hours: ${co.contact_hours || '[hours]'}\n` +
-        (co.tuition ? `Tuition: ${co.tuition}\n\n` : '\n') +
-        `Apply: [URL]  ·  Questions: [email]`,
-      note: 'Give this to a designer as the copy layer for a 1-page PDF/print flyer.',
-    },
-  ];
+  const contentSummary = useMemo(() => summarizeInputs(proposal), [proposal]);
+  const hasEnoughInput = contentSummary.filledCount >= 3;
 
-  function copy(text: string) {
+  async function run(isRegen = false) {
+    if (isRegen) setRegenerating(true);
+    else setLoading(true);
+    setError(null);
     try {
-      void navigator.clipboard.writeText(text);
-    } catch {
-      // clipboard blocked — user can still select-all
+      const p = await generateMarketingPackage(proposal);
+      setPkg(p);
+    } catch (e) {
+      setError(humanError(e, 'Could not draft the marketing kit.'));
+    } finally {
+      setLoading(false);
+      setRegenerating(false);
     }
   }
 
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-        Copy-ready outreach
-      </div>
-      <h2 className="mb-1 text-xl font-bold text-slate-900">
-        Share-ready templates
-      </h2>
-      <p className="mb-6 text-sm text-slate-500">
-        Pre-formatted copy for LinkedIn, X/Facebook, and a print flyer — built from your course
-        overview and your messaging above. Click <em>Copy</em>, paste anywhere, edit as needed.
-      </p>
+    <section
+      id="auto-marketing-kit"
+      className="mb-6 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm"
+    >
+      <div className="bg-gradient-to-br from-amber-50 via-rose-50 to-emerald-50 px-8 py-6">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+          Auto-drafted marketing kit
+        </div>
+        <h2 className="mb-1 text-xl font-bold text-slate-900">
+          Turn your course content into a launch kit
+        </h2>
+        <p className="max-w-2xl text-sm text-slate-700">
+          Once you have a working draft — course basics, needs statement, essential
+          question, a module or two, your messaging talking points — Coach reads all
+          of it and drafts a course one-pager, ready-to-post social copy, an info-session
+          outline, an announcement email, a Georgetown catalog snippet, and an FAQ.
+          Every asset uses <em>your words</em>; nothing is invented.
+        </p>
 
-      <div className="space-y-4">
-        {templates.map((t) => (
-          <div key={t.channel} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-semibold text-slate-800">{t.channel}</div>
-              <button
-                type="button"
-                onClick={() => copy(t.body)}
-                className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
-              >
-                Copy
-              </button>
-            </div>
-            <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-sans text-xs text-slate-800">
-              {t.body}
-            </pre>
-            {t.note && (
-              <div className="mt-2 text-[11px] italic text-slate-500">{t.note}</div>
-            )}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {!pkg && (
+            <button
+              type="button"
+              onClick={() => run(false)}
+              disabled={loading || !hasEnoughInput}
+              className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loading ? 'Drafting…' : 'Draft the full marketing kit ✨'}
+            </button>
+          )}
+          {pkg && (
+            <button
+              type="button"
+              onClick={() => run(true)}
+              disabled={regenerating}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+            >
+              {regenerating ? 'Redrafting…' : 'Redraft everything'}
+            </button>
+          )}
+          <div className="text-xs text-slate-600">
+            Drawing from <strong>{contentSummary.filledCount}</strong> filled sections
+            {contentSummary.moduleCount > 0
+              ? ` and ${contentSummary.moduleCount} module${
+                  contentSummary.moduleCount === 1 ? '' : 's'
+                }`
+              : ''}
+            . Takes about 30 seconds.
           </div>
-        ))}
+        </div>
+        {!hasEnoughInput && !pkg && (
+          <div className="mt-3 rounded-lg border border-amber-300 bg-amber-100/60 px-3 py-2 text-xs text-amber-900">
+            Add a bit more first — at minimum fill in the course name, intended
+            audience, and either the needs statement or a couple of modules on the
+            pedagogy side. The drafts get much better when there's real content to
+            pull from.
+          </div>
+        )}
       </div>
+
+      {error && (
+        <div className="border-t border-rose-200 bg-rose-50 px-8 py-3 text-sm text-rose-800">
+          {error}
+        </div>
+      )}
+
+      {loading && !pkg && (
+        <div className="border-t border-slate-200 px-8 py-10 text-center text-sm text-slate-600">
+          Reading your course content and drafting the kit…
+        </div>
+      )}
+
+      {pkg && (
+        <div className="border-t border-slate-200 bg-slate-50/40 px-8 py-8 space-y-6">
+          <OnePagerCard onePager={pkg.one_pager} />
+          <ChannelDraftsBlock drafts={pkg.channel_drafts} />
+          <InfoSessionCard session={pkg.info_session} />
+          <AnnouncementEmailCard email={pkg.announcement_email} />
+          <GeorgetownSnippetCard snippet={pkg.georgetown_snippet} />
+          <FaqCard faq={pkg.faq} />
+        </div>
+      )}
     </section>
   );
 }
 
-function OnePagerSection({
-  courseContext,
-}: {
-  courseContext: Record<string, string>;
-}) {
-  const { proposal, updateSection } = useProposal();
-  const notes = proposal.marketing_extras.one_pager_notes;
+function summarizeInputs(proposal: ReturnType<typeof useProposal>['proposal']): {
+  filledCount: number;
+  moduleCount: number;
+} {
   const co = proposal.course_overview;
+  const r = proposal.rationale;
+  const en = proposal.enrollment;
+  const me = proposal.marketing_extras;
+  const d = proposal.design;
+  const checks = [
+    !!co.course_name.trim(),
+    !!co.intended_audiences.trim(),
+    !!co.course_description.trim(),
+    !!co.course_format.trim(),
+    !!co.duration.trim(),
+    !!co.tuition.trim(),
+    !!r.needs_statement.trim(),
+    !!r.evidence_of_demand.trim(),
+    !!r.competitive_landscape.trim(),
+    !!en.recruitment.trim(),
+    !!en.marketing.trim(),
+    !!me.messaging_talking_points.trim(),
+    !!d.essential_question.trim(),
+    !!d.learning_objectives.trim(),
+  ];
+  return {
+    filledCount: checks.filter(Boolean).length,
+    moduleCount: d.modules.length,
+  };
+}
+
+function CopyPill({ text, label = 'Copy' }: { text: string; label?: string }) {
+  const [ok, setOk] = useState(false);
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-        One-pager
+    <button
+      type="button"
+      onClick={() => {
+        try {
+          void navigator.clipboard.writeText(text);
+          setOk(true);
+          setTimeout(() => setOk(false), 1400);
+        } catch {
+          /* clipboard blocked */
+        }
+      }}
+      className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-100"
+    >
+      {ok ? 'Copied' : label}
+    </button>
+  );
+}
+
+function OnePagerCard({ onePager }: { onePager: MarketingPackage['one_pager'] }) {
+  const combined =
+    `${onePager.headline}\n${onePager.subhead}\n\n` +
+    `${onePager.elevator_pitch}\n\n` +
+    `WHO IT'S FOR\n${onePager.who_its_for.map((b) => '• ' + b).join('\n')}\n\n` +
+    `WHAT YOU'LL LEAVE WITH\n${onePager.what_youll_leave_with.map((b) => '• ' + b).join('\n')}\n\n` +
+    `FORMAT & DATES\n${onePager.format_and_dates}\n\n` +
+    `TUITION\n${onePager.tuition_line}\n\n` +
+    `FACULTY\n${onePager.faculty_line}\n\n` +
+    `WHY NOW\n${onePager.why_now}\n\n` +
+    `${onePager.cta}`;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-3">
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Course one-pager
+        </div>
+        <CopyPill text={combined} label="Copy one-pager" />
       </div>
-      <h2 className="mb-1 text-xl font-bold text-slate-900">
-        Course one-pager to circulate
-      </h2>
-      <p className="mb-6 text-sm text-slate-500">
-        A short summary you can send to prospective learners, partners, and colleagues.
-        Structure: hook, who it's for, what they'll leave with, format &amp; dates, next step.
+      <div className="px-6 py-6">
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+          One-pager
+        </div>
+        <h3 className="mb-2 text-2xl font-bold leading-tight text-slate-900">
+          {onePager.headline}
+        </h3>
+        <p className="mb-6 text-base text-slate-700">{onePager.subhead}</p>
+        <p className="mb-6 border-l-4 border-amber-400 pl-4 text-sm italic text-slate-700">
+          {onePager.elevator_pitch}
+        </p>
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Who it's for
+            </div>
+            <ul className="space-y-1.5 text-sm text-slate-800">
+              {onePager.who_its_for.map((b, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              What you'll leave with
+            </div>
+            <ul className="space-y-1.5 text-sm text-slate-800">
+              {onePager.what_youll_leave_with.map((b, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Format & dates
+            </div>
+            <div className="text-slate-800">{onePager.format_and_dates || '—'}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Tuition
+            </div>
+            <div className="text-slate-800">{onePager.tuition_line || '—'}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Faculty
+            </div>
+            <div className="text-slate-800">{onePager.faculty_line || '—'}</div>
+          </div>
+        </div>
+
+        {onePager.why_now && (
+          <div className="mt-6">
+            <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              Why now
+            </div>
+            <p className="text-sm text-slate-800">{onePager.why_now}</p>
+          </div>
+        )}
+
+        {onePager.cta && (
+          <div className="mt-6 rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white">
+            {onePager.cta}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChannelDraftsBlock({ drafts }: { drafts: MarketingPackage['channel_drafts'] }) {
+  if (!drafts.length) return null;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-800">
+        Copy-ready posts
+      </div>
+      <h3 className="mb-4 text-lg font-bold text-slate-900">Social & flyer copy</h3>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {drafts.map((d, i) => (
+          <div
+            key={i}
+            className="flex flex-col rounded-xl border border-slate-200 bg-slate-50 p-4"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold text-slate-800">{d.channel}</div>
+              <CopyPill text={d.body} />
+            </div>
+            <pre className="flex-1 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-sans text-xs leading-relaxed text-slate-800">
+              {d.body}
+            </pre>
+            {d.length_note && (
+              <div className="mt-2 text-[11px] italic text-slate-500">{d.length_note}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InfoSessionCard({ session }: { session: MarketingPackage['info_session'] }) {
+  const md =
+    `# ${session.title || 'Info session'}\n` +
+    `_${session.duration_minutes} minutes_\n\n` +
+    `## Agenda\n${session.agenda.map((a) => '- ' + a).join('\n')}\n\n` +
+    `## Talking points\n${session.talking_points.map((a) => '- ' + a).join('\n')}\n\n` +
+    `## Anticipated questions\n${session.audience_questions.map((a) => '- ' + a).join('\n')}\n`;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Info session outline
+        </div>
+        <CopyPill text={md} label="Copy outline" />
+      </div>
+      <h3 className="mb-1 text-lg font-bold text-slate-900">{session.title || 'Info session'}</h3>
+      <div className="mb-5 text-xs text-slate-500">{session.duration_minutes} minutes</div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Agenda
+          </div>
+          <ol className="space-y-1.5 text-sm text-slate-800">
+            {session.agenda.map((a, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-slate-400">{i + 1}.</span>
+                <span>{a}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Talking points
+          </div>
+          <ul className="space-y-1.5 text-sm text-slate-800">
+            {session.talking_points.map((a, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span>{a}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Likely audience questions
+          </div>
+          <ul className="space-y-1.5 text-sm text-slate-800">
+            {session.audience_questions.map((a, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="mt-1 text-slate-400">?</span>
+                <span>{a}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementEmailCard({ email }: { email: MarketingPackage['announcement_email'] }) {
+  const full = `Subject: ${email.subject}\n\n${email.body}`;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Announcement email (Constant Contact-ready)
+        </div>
+        <div className="flex gap-2">
+          <CopyPill text={email.subject} label="Copy subject" />
+          <CopyPill text={email.body} label="Copy body" />
+          <CopyPill text={full} label="Copy all" />
+        </div>
+      </div>
+      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+          Subject
+        </div>
+        <div className="text-sm font-semibold text-slate-900">{email.subject}</div>
+        {email.preview && (
+          <div className="mt-1 text-xs italic text-slate-500">Preview: {email.preview}</div>
+        )}
+      </div>
+      <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-4 font-sans text-sm leading-relaxed text-slate-800">
+        {email.body}
+      </pre>
+    </div>
+  );
+}
+
+function GeorgetownSnippetCard({ snippet }: { snippet: string }) {
+  if (!snippet) return null;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Georgetown catalog snippet
+        </div>
+        <CopyPill text={snippet} label="Copy snippet" />
+      </div>
+      <p className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
+        {snippet}
       </p>
+      <p className="mt-2 text-[11px] italic text-slate-500">
+        Formal register — paste into the internal approval doc or the catalog listing.
+      </p>
+    </div>
+  );
+}
 
-      <Field
-        label="Working notes for the one-pager"
-        hint="Anything you want the Coach to fold in — endorsements, alumni quotes, a specific angle."
-      >
-        <Textarea
-          value={notes}
-          onChange={(v) => updateSection('marketing_extras', { one_pager_notes: v })}
-          rows={5}
-        />
-      </Field>
-
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div className="mb-2 text-sm font-semibold text-slate-800">Draft one-pager</div>
-        <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-sans text-xs text-slate-800">
-{`${(co.course_name || 'Course title').toUpperCase()}
-A Thrive Academy course for ${co.intended_audiences || '[audience]'}
-
-WHY THIS COURSE
-${notes ? notes.split('\n')[0] : '[Your one-line hook — the Coach can help sharpen it in the Messaging section above.]'}
-
-WHO IT'S FOR
-${co.intended_audiences || '[Describe the learner]'}
-
-WHAT YOU'LL LEAVE WITH
-${(proposal.design.learning_objectives || '[Learning outcomes from the Course Design workspace]').split('\n').slice(0, 4).map((s) => '• ' + s).join('\n') || '• [Outcome 1]\n• [Outcome 2]\n• [Outcome 3]'}
-
-FORMAT & DATES
-${co.course_format || '[Format]'} · ${co.duration || '[Duration]'} · ${co.contact_hours || '[Total hours]'} contact hours
-
-NEXT STEP
-Apply at [link] · Questions: [email]`}
-        </pre>
+function FaqCard({ faq }: { faq: MarketingPackage['faq'] }) {
+  if (!faq.length) return null;
+  const md = faq.map((f) => `**${f.question}**\n${f.answer}`).join('\n\n');
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Anticipated FAQs
+        </div>
+        <CopyPill text={md} label="Copy all Q&As" />
       </div>
-
-      <div className="mt-3">
-        <CoachButton
-          section="one_pager"
-          field="marketing"
-          fieldLabel="One-pager sharpening"
-          currentValue={notes}
-          courseContext={courseContext}
-          onApplyExample={(v) =>
-            updateSection('marketing_extras', {
-              one_pager_notes: notes ? notes + '\n\n' + v : v,
-            })
-          }
-        />
-      </div>
-    </section>
+      <h3 className="mb-4 text-lg font-bold text-slate-900">Questions learners will ask</h3>
+      <ul className="space-y-3">
+        {faq.map((f, i) => (
+          <li key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-1 text-sm font-semibold text-slate-900">{f.question}</div>
+            <div className="text-sm text-slate-700">{f.answer}</div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
