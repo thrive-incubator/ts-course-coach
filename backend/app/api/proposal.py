@@ -198,7 +198,9 @@ def _render_for_brief(p: dict[str, Any]) -> str:
     out += line("Evidence of demand", rationale.get("evidence_of_demand"))
     out += line("Competitive landscape", rationale.get("competitive_landscape"))
     out += line("Additional notes", rationale.get("additional_notes"))
-    out += line("Recruitment & marketing plan so far", enrollment.get("recruitment_and_marketing"))
+    recruitment_val = enrollment.get("recruitment") or enrollment.get("recruitment_and_marketing")
+    out += line("Recruitment plan so far (where to reach the audience)", recruitment_val)
+    out += line("Marketing plan so far (message + proof points)", enrollment.get("marketing"))
     out += line("Admissions criteria", enrollment.get("admissions_criteria"))
     out += "\n"
     out += line("Course essential question", design.get("essential_question"))
@@ -239,6 +241,137 @@ async def marketing_brief(req: Proposal) -> MarketingBrief:
         contents=_brief_prompt(req.data),
         schema=MarketingBrief,
         temperature=0.6,
+    )
+
+
+# ---- Social media marketing plan ------------------------------------------
+
+_SOCIAL_PLAN_SYSTEM = (
+    "You are a senior instructional-marketing strategist producing a multi-week "
+    "social-media content calendar for a Thrive Academy course launch. You write "
+    "in a warm, confident, non-hype voice grounded in the course's audience and "
+    "specifics. Never invent facts about faculty, endorsements, or partnerships that "
+    "the proposal does not state. Do not use em dashes; rewrite any sentence that "
+    "would need one. Match the phase arc: Awareness (weeks 1 to about a third of the "
+    "campaign) establishes the gap. Outcomes (next third) shows the future state. "
+    "Differentiators (next third) shows faculty, curriculum, and unique elements. "
+    "Urgency (final weeks) drives applications before the deadline. Return valid JSON only."
+)
+
+
+class SocialPost(BaseModel):
+    channel: str = Field(description="LinkedIn | Instagram | X/Twitter | Facebook")
+    body: str = Field(description="Post copy tuned to the channel's norms and length")
+
+
+class CanvaSpec(BaseModel):
+    headline: str = ""
+    subhead: str = ""
+    details: str = ""
+    cta: str = ""
+    design_note: str = Field(default="", description="Visual/style direction, one line")
+
+
+class SocialWeek(BaseModel):
+    week_number: int
+    phase: str = Field(description="Awareness | Outcomes | Differentiators | Urgency")
+    theme: str = Field(description="Short theme label, e.g. 'The Gap' or 'Faculty Leadership'")
+    hook: str = Field(description="One-line concept for the week's message")
+    posts: list[SocialPost] = Field(default_factory=list, description="One post per channel in the campaign")
+    canva: CanvaSpec = Field(default_factory=CanvaSpec)
+
+
+class SocialPlan(BaseModel):
+    campaign_title: str = ""
+    campaign_summary: str = Field(default="", description="2-3 sentence read of the arc")
+    weeks: list[SocialWeek] = Field(default_factory=list)
+    usage_notes: list[str] = Field(
+        default_factory=list,
+        description="Short reminders for the marketing team (link swaps, tone rules, scheduling caveats)",
+    )
+
+
+def _render_for_social_plan(p: dict[str, Any]) -> str:
+    course = p.get("course_overview", {}) or {}
+    rationale = p.get("rationale", {}) or {}
+    enrollment = p.get("enrollment", {}) or {}
+    design = p.get("design", {}) or {}
+    social = p.get("social_plan", {}) or {}
+
+    def line(label: str, value: Any) -> str:
+        v = str(value or "").strip()
+        return f"{label}: {v}\n" if v else ""
+
+    out = "COURSE:\n"
+    out += line("Course name", course.get("course_name"))
+    out += line("Description", course.get("course_description"))
+    out += line("Faculty", course.get("faculty"))
+    out += line("Intended audiences", course.get("intended_audiences"))
+    out += line("Duration", course.get("duration"))
+    out += line("Contact hours", course.get("contact_hours"))
+    out += line("Cohort size", course.get("cohort_size"))
+    out += line("Tuition", course.get("tuition"))
+    out += "\nPOSITIONING INPUTS:\n"
+    out += line("Needs statement", rationale.get("needs_statement"))
+    out += line("Evidence of demand", rationale.get("evidence_of_demand"))
+    out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Recruitment plan", enrollment.get("recruitment"))
+    out += line("Marketing plan (message + proof points)", enrollment.get("marketing"))
+    out += line("Course essential question", design.get("essential_question"))
+    out += line("Course-level learning objectives", design.get("learning_objectives"))
+    out += "\nSOCIAL PLAN INPUTS:\n"
+    out += line("Campaign length (weeks)", social.get("campaign_weeks"))
+    out += line("Start date", social.get("start_date"))
+    out += line("Application deadline", social.get("application_deadline"))
+    out += line("Landing page URL", social.get("landing_url"))
+    out += line("Contact email", social.get("contact_email"))
+    out += line("Channels", social.get("channels"))
+    out += line("Hashtags", social.get("hashtags"))
+    out += line("Awareness hook (the gap or problem)", social.get("awareness_hook"))
+    out += line("Outcomes promise (future state after enrolling)", social.get("outcomes_promise"))
+    out += line("Audience segments to spotlight in Outcomes phase", social.get("audience_segments"))
+    out += line("Differentiators (faculty, curriculum, capstone, endorsement, etc.)", social.get("differentiators"))
+    out += line("Proof points (accreditation, endorsement crosswalks, alumni outcomes)", social.get("proof_points"))
+    out += line("Urgency reason (deadline pressure, cohort cap)", social.get("urgency_reason"))
+    out += line("Tone notes / rules (e.g. no em dashes, avoid jargon X)", social.get("tone_notes"))
+    return out.strip()
+
+
+def _social_plan_prompt(proposal: dict[str, Any]) -> str:
+    social = proposal.get("social_plan", {}) or {}
+    try:
+        weeks = int(str(social.get("campaign_weeks") or "12").strip() or "12")
+    except ValueError:
+        weeks = 12
+    weeks = max(4, min(weeks, 16))
+    channels_raw = str(social.get("channels") or "LinkedIn, Instagram, X/Twitter, Facebook")
+    channels = [c.strip() for c in channels_raw.split(",") if c.strip()]
+    return (
+        "Build a social-media content calendar for the course launch below. "
+        f"Produce exactly {weeks} weeks. For each week, include one post per channel "
+        f"({', '.join(channels)}) plus a Canva design spec (headline, subhead, details, cta, "
+        "design_note). Vary hooks across weeks — do not repeat the same opener. Post copy "
+        "should be tuned to the channel: LinkedIn 120-180 words in a professional voice; "
+        "Instagram 60-120 words with warm framing; X/Twitter under 280 characters; Facebook "
+        "80-150 words in a slightly warmer voice. Always include the landing URL where the "
+        "post asks the reader to act, and end with hashtags on channels where they belong "
+        "(LinkedIn, Instagram, X/Twitter). Rotate which audience segment each Outcomes-phase "
+        "week focuses on when segments are given. Phase distribution: split the weeks roughly "
+        "into quarters across Awareness, Outcomes, Differentiators, Urgency in that order.\n\n"
+        f"INPUTS:\n{_render_for_social_plan(proposal)}\n\n"
+        "Return strict JSON matching the SocialPlan schema."
+    )
+
+
+@router.post("/social-plan", response_model=SocialPlan)
+async def social_plan(req: Proposal) -> SocialPlan:
+    """Generate a multi-week social-media marketing calendar from a proposal."""
+    return await generate_json(
+        endpoint="proposal/social-plan",
+        system=_SOCIAL_PLAN_SYSTEM,
+        contents=_social_plan_prompt(req.data),
+        schema=SocialPlan,
+        temperature=0.7,
     )
 
 
@@ -364,11 +497,10 @@ async def export_proposal(req: Proposal) -> ExportResponse:
         md += _fmt(label, rationale.get(key))
 
     md += "## 3. Course Enrollment & Marketing\n\n"
-    for label, key in [
-        ("Recruitment and Marketing", "recruitment_and_marketing"),
-        ("Admissions Criteria and Selection Process", "admissions_criteria"),
-    ]:
-        md += _fmt(label, enrollment.get(key))
+    recruitment_export = enrollment.get("recruitment") or enrollment.get("recruitment_and_marketing")
+    md += _fmt("Recruitment", recruitment_export)
+    md += _fmt("Marketing", enrollment.get("marketing"))
+    md += _fmt("Admissions Criteria and Selection Process", enrollment.get("admissions_criteria"))
 
     md += "## 4. Course Design\n\n"
     md += _fmt("Course Essential Question", design.get("essential_question"))

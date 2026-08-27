@@ -24,6 +24,9 @@ class CoachRequest(BaseModel):
     field: str
     current_value: str = ""
     course_context: dict[str, Any] = {}
+    # Optional continuation of a running thought-partner exchange:
+    prior_response: str = ""
+    follow_up: str = ""
 
 
 class CoachResponse(BaseModel):
@@ -122,10 +125,18 @@ FIELD_PROMPTS: dict[str, str] = {
         "to name 2-3 real alternatives and their positioning. Then help them articulate the "
         "distinct wedge Thrive Academy offers. Suggest 2 sample alternative-plus-differentiator lines."
     ),
-    "recruitment_and_marketing": (
-        "Coach the faculty on Recruitment & Marketing. Focus on: (1) where the audience already "
-        "gathers (listservs, associations, LinkedIn groups, conferences), (2) the one line that "
-        "would make someone in that audience stop scrolling, (3) proof points that unlock trust. "
+    "recruitment": (
+        "Coach the faculty on Recruitment — where they can actually reach the intended audience. "
+        "Focus on: the listservs, associations, LinkedIn groups, conferences, state chapters, "
+        "professional networks, and partner organizations this specific audience already trusts. "
+        "Suggest 3-5 concrete channels or partner orgs tuned to the intended audience — not "
+        "generic ones. If the draft is thin on specifics, name the gap."
+    ),
+    "marketing": (
+        "Coach the faculty on Marketing — the message and the packaging, not the channels. "
+        "Focus on: (1) the one line that would make someone in this audience stop scrolling, "
+        "(2) proof points that unlock trust (Endorsement hours, cohort intimacy, faculty "
+        "credentials, alumni outcomes), (3) the top 1-2 objections to pre-empt. "
         "Suggest 2 candidate one-liners tuned to the intended audience."
     ),
     "essential_question": (
@@ -185,23 +196,36 @@ _GENERIC_PROMPT = (
 def _system_instruction() -> str:
     return (
         "You are the Course Coach for Thrive Academy — an experienced learning designer + "
-        "instructional marketer. Your voice is: warm, concise, concrete. You NEVER lecture. "
-        "You give ONE main suggestion per response (at most 90 words), then 2-3 short examples "
-        "(at most 30 words each — the field prompt says how many). You reference "
-        "innovative-pedagogy principles (Bloom's, authentic assessment, active learning, "
-        "cohort community) without name-dropping them mechanically. When marketing, you focus "
-        "on audience-first framing, not feature lists.\n\n"
-        "If the draft is empty, do not critique the absence — propose a strong starter built "
-        "from the course context, then the examples. If the draft is already strong, say so in "
-        "one line and name one sharpening move; never invent a problem.\n\n"
-        "Example of the voice, for a course-level essential question drafted as "
-        "'Understand reflective supervision':\n"
-        '  suggestion: "That\'s a learning objective wearing a question\'s clothes — it can be '
-        "answered with a definition. An essential question should keep a home visitor arguing "
-        "with herself in week ten. Try aiming it at the moment reflective practice is hardest: "
-        'when the family is in crisis and slowing down feels irresponsible."\n'
+        "instructional marketer acting as a THOUGHT PARTNER to the faculty member. Warm, "
+        "concise, specific. You never lecture, never generate from scratch when they've already "
+        "written something. Your job is to help THEIR thinking sharpen — quote their own words "
+        "back when you can.\n\n"
+        "How to structure `suggestion` (at most 120 words total):\n"
+        "  1. Reflect back — one sentence naming what you heard them saying, using their own "
+        "phrasing where possible. Signals you actually read the draft.\n"
+        "  2. Ask — one probing question that opens the next layer of their thinking (\"What "
+        "would a skeptical enrollee push back on?\" \"Which of these two claims is the load-"
+        "bearing one?\"). Never rhetorical.\n"
+        "  3. Nudge — one concrete move they could try: a reframe, a missing element, a "
+        "sharper verb. Grounded in their actual draft.\n\n"
+        "How to structure `examples` (2-3 short items, at most 30 words each):\n"
+        "  • When they have a draft: 1 refined version built from THEIR sentences (not a "
+        "brand-new take), plus at most 1 alternative angle. Preserve their voice.\n"
+        "  • When the field is truly empty: 2 starter options tuned to the course context, "
+        "clearly labeled as jumping-off points, not final answers.\n\n"
+        "Tone: `challenging` when there's real substance to push on; `encouraging` when they're "
+        "just getting started or thinking out loud; `celebratory` only when the draft is "
+        "already strong and needs one polish move — never invent a problem.\n\n"
+        "Example voice, for a course-level essential question drafted as 'Understand reflective "
+        "supervision':\n"
+        '  suggestion: "You\'re circling something real — reflective supervision as the muscle '
+        "home visitors need. But right now this reads more like a learning objective than a "
+        "question: it can be answered with a definition. What if you aimed it at the moment "
+        "reflection is hardest — say, when a family is in crisis and slowing down feels "
+        'irresponsible? That\'s where the wrestle lives."\n'
         '  examples: ["What does it take to stay curious about a parent when everything in you '
-        'wants to fix?", "When is slowing down the most responsible thing a home visitor can do?"]\n'
+        'wants to fix?", "When is slowing down the most responsible thing a home visitor can '
+        'do?"]\n'
         '  tone: "challenging"\n\n'
         "Return valid JSON only."
     )
@@ -248,14 +272,36 @@ def _context_lines(ctx: dict[str, Any] | None) -> str:
 async def coach(req: CoachRequest) -> CoachResponse:
     """Return an inline coaching suggestion for a single proposal field."""
     field_prompt = _prompt_for(req.field)
-    user_text = (
-        f"Field: {req.field} (in section: {req.section})\n\n"
-        f"Course context so far:\n{_context_lines(req.course_context) or '  (none yet)'}\n\n"
-        f"Current draft of this field:\n---\n{req.current_value or '(empty — no draft yet)'}\n---\n\n"
-        f"{field_prompt}\n\n"
-        'Reply with strict JSON: {"suggestion": "...", "examples": ["...", "..."], '
-        '"tone": "encouraging|challenging|celebratory"}'
-    )
+    parts = [
+        f"Field: {req.field} (in section: {req.section})",
+        "",
+        f"Course context so far:\n{_context_lines(req.course_context) or '  (none yet)'}",
+        "",
+        f"Faculty's current draft of this field:\n---\n{req.current_value or '(empty — no draft yet)'}\n---",
+    ]
+    if req.prior_response.strip() or req.follow_up.strip():
+        parts += [
+            "",
+            "Prior exchange in this conversation:",
+            f"  Coach said: {req.prior_response.strip() or '(nothing yet)'}",
+            f"  Faculty replied: {req.follow_up.strip() or '(nothing yet)'}",
+            "",
+            (
+                "The faculty is continuing the conversation. Respond to their reply in the "
+                "same thought-partner shape: reflect what they just said, ask one further "
+                "sharpening question, offer one concrete next move. Do NOT restart the topic."
+            ),
+        ]
+    parts += [
+        "",
+        field_prompt,
+        "",
+        (
+            'Reply with strict JSON: {"suggestion": "...", "examples": ["...", "..."], '
+            '"tone": "encouraging|challenging|celebratory"}'
+        ),
+    ]
+    user_text = "\n".join(parts)
     result = await generate_json(
         endpoint=f"coach/{req.field}",
         system=_system_instruction(),

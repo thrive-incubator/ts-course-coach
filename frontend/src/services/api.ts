@@ -148,6 +148,8 @@ export function getCoachSuggestion(payload: {
   field: string;
   current_value: string;
   course_context: Record<string, string>;
+  prior_response?: string;
+  follow_up?: string;
 }) {
   return apiFetch<CoachResponse>('/coach', {
     method: 'POST',
@@ -258,6 +260,44 @@ export interface MarketingBrief {
 
 export function generateMarketingBrief(proposal: Proposal) {
   return apiFetch<MarketingBrief>('/proposal/marketing-brief', {
+    method: 'POST',
+    body: JSON.stringify({ data: proposal }),
+  });
+}
+
+// ---- Social media marketing plan -----------------------------------------
+
+export interface SocialPost {
+  channel: string;
+  body: string;
+}
+
+export interface CanvaSpec {
+  headline: string;
+  subhead: string;
+  details: string;
+  cta: string;
+  design_note: string;
+}
+
+export interface SocialWeek {
+  week_number: number;
+  phase: string;
+  theme: string;
+  hook: string;
+  posts: SocialPost[];
+  canva: CanvaSpec;
+}
+
+export interface SocialPlan {
+  campaign_title: string;
+  campaign_summary: string;
+  weeks: SocialWeek[];
+  usage_notes: string[];
+}
+
+export function generateSocialPlan(proposal: Proposal) {
+  return apiFetch<SocialPlan>('/proposal/social-plan', {
     method: 'POST',
     body: JSON.stringify({ data: proposal }),
   });

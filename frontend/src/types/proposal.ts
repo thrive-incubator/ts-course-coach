@@ -84,6 +84,9 @@ export interface Proposal {
     cohort_size: string;
     duration: string;
     contact_hours: string;
+    contact_hours_live: string;
+    contact_hours_virtual_sync: string;
+    contact_hours_async: string;
     tuition: string;
   };
   rationale: {
@@ -93,8 +96,23 @@ export interface Proposal {
     additional_notes: string;
   };
   enrollment: {
-    recruitment_and_marketing: string;
+    recruitment: string;
+    marketing: string;
     admissions_criteria: string;
+    admissions_skip: boolean;
+  };
+  marketing_extras: {
+    messaging_talking_points: string;
+    outreach_places: string;
+    one_pager_notes: string;
+    outreach_checklist_notes: string;
+    outreach_checklist_done: Record<string, boolean>;
+  };
+  pricing_deep: {
+    fair_market_notes: string;
+    budget_notes: string;
+    ability_to_pay_notes: string;
+    affordability_gap_plan: string;
   };
   design: {
     essential_question: string;
@@ -109,6 +127,22 @@ export interface Proposal {
   };
   financials: {
     financial_overview: string;
+  };
+  social_plan: {
+    campaign_weeks: string;
+    start_date: string;
+    application_deadline: string;
+    landing_url: string;
+    contact_email: string;
+    channels: string;
+    hashtags: string;
+    awareness_hook: string;
+    outcomes_promise: string;
+    audience_segments: string;
+    differentiators: string;
+    proof_points: string;
+    urgency_reason: string;
+    tone_notes: string;
   };
 }
 
@@ -126,6 +160,9 @@ export const EMPTY_PROPOSAL: Proposal = {
     cohort_size: '',
     duration: '',
     contact_hours: '',
+    contact_hours_live: '',
+    contact_hours_virtual_sync: '',
+    contact_hours_async: '',
     tuition: '',
   },
   rationale: {
@@ -135,8 +172,23 @@ export const EMPTY_PROPOSAL: Proposal = {
     additional_notes: '',
   },
   enrollment: {
-    recruitment_and_marketing: '',
+    recruitment: '',
+    marketing: '',
     admissions_criteria: '',
+    admissions_skip: false,
+  },
+  marketing_extras: {
+    messaging_talking_points: '',
+    outreach_places: '',
+    one_pager_notes: '',
+    outreach_checklist_notes: '',
+    outreach_checklist_done: {},
+  },
+  pricing_deep: {
+    fair_market_notes: '',
+    budget_notes: '',
+    ability_to_pay_notes: '',
+    affordability_gap_plan: '',
   },
   design: {
     essential_question: '',
@@ -150,6 +202,22 @@ export const EMPTY_PROPOSAL: Proposal = {
     cqi: '',
   },
   financials: { financial_overview: '' },
+  social_plan: {
+    campaign_weeks: '12',
+    start_date: '',
+    application_deadline: '',
+    landing_url: '',
+    contact_email: '',
+    channels: 'LinkedIn, Instagram, X/Twitter, Facebook',
+    hashtags: '',
+    awareness_hook: '',
+    outcomes_promise: '',
+    audience_segments: '',
+    differentiators: '',
+    proof_points: '',
+    urgency_reason: '',
+    tone_notes: '',
+  },
 };
 
 export function newModuleId(): string {

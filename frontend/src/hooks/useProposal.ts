@@ -74,7 +74,27 @@ export function hydrate(raw: any): Proposal {
     enrollment: { ...base.enrollment, ...(raw?.enrollment || {}) },
     design: { ...base.design, ...(raw?.design || {}) },
     financials: { ...base.financials, ...(raw?.financials || {}) },
+    social_plan: { ...base.social_plan, ...(raw?.social_plan || {}) },
+    marketing_extras: {
+      ...base.marketing_extras,
+      ...(raw?.marketing_extras || {}),
+      outreach_checklist_done: {
+        ...base.marketing_extras.outreach_checklist_done,
+        ...((raw?.marketing_extras?.outreach_checklist_done as Record<string, boolean>) || {}),
+      },
+    },
+    pricing_deep: { ...base.pricing_deep, ...(raw?.pricing_deep || {}) },
   };
+
+  const rawEnrollment = raw?.enrollment || {};
+  const legacyRM =
+    typeof rawEnrollment.recruitment_and_marketing === 'string'
+      ? rawEnrollment.recruitment_and_marketing
+      : '';
+  if (!merged.enrollment.recruitment && legacyRM) {
+    merged.enrollment.recruitment = legacyRM;
+  }
+  delete (merged.enrollment as any).recruitment_and_marketing;
 
   const design = merged.design as any;
   let modules: CourseModule[] = Array.isArray(design.modules) ? design.modules : [];

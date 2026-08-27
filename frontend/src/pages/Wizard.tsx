@@ -310,19 +310,19 @@ export default function Wizard() {
           {step === 3 && (
             <>
               <Field
-                label="Recruitment and marketing"
-                hint="Where does this audience already gather? What one line makes them stop scrolling?"
+                label="Recruitment"
+                hint="Where does this audience already gather? Which listservs, associations, LinkedIn groups, conferences, and partner orgs get you in front of them?"
                 coach={
                   <CoachButton
                     section="enrollment"
-                    field="recruitment_and_marketing"
-                    fieldLabel="Recruitment & marketing"
-                    currentValue={proposal.enrollment.recruitment_and_marketing}
+                    field="recruitment"
+                    fieldLabel="Recruitment"
+                    currentValue={proposal.enrollment.recruitment}
                     courseContext={courseContext}
                     onApplyExample={(v) =>
                       updateSection('enrollment', {
-                        recruitment_and_marketing: proposal.enrollment.recruitment_and_marketing
-                          ? proposal.enrollment.recruitment_and_marketing + '\n\n' + v
+                        recruitment: proposal.enrollment.recruitment
+                          ? proposal.enrollment.recruitment + '\n\n' + v
                           : v,
                       })
                     }
@@ -330,8 +330,34 @@ export default function Wizard() {
                 }
               >
                 <Textarea
-                  value={proposal.enrollment.recruitment_and_marketing}
-                  onChange={(v) => updateSection('enrollment', { recruitment_and_marketing: v })}
+                  value={proposal.enrollment.recruitment}
+                  onChange={(v) => updateSection('enrollment', { recruitment: v })}
+                  rows={5}
+                />
+              </Field>
+              <Field
+                label="Marketing"
+                hint="What one line makes them stop scrolling? What proof points unlock trust? Which channels carry the message?"
+                coach={
+                  <CoachButton
+                    section="enrollment"
+                    field="marketing"
+                    fieldLabel="Marketing"
+                    currentValue={proposal.enrollment.marketing}
+                    courseContext={courseContext}
+                    onApplyExample={(v) =>
+                      updateSection('enrollment', {
+                        marketing: proposal.enrollment.marketing
+                          ? proposal.enrollment.marketing + '\n\n' + v
+                          : v,
+                      })
+                    }
+                  />
+                }
+              >
+                <Textarea
+                  value={proposal.enrollment.marketing}
+                  onChange={(v) => updateSection('enrollment', { marketing: v })}
                   rows={5}
                 />
               </Field>
