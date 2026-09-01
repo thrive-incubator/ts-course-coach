@@ -45,6 +45,8 @@ interface Props {
   onRemove: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  /** Export this module as a PDF (opens the print dialog in a new tab). Optional so legacy callers still compile. */
+  onExportPdf?: () => void;
 }
 
 export default function ModuleCard({
@@ -59,6 +61,7 @@ export default function ModuleCard({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onExportPdf,
 }: Props) {
   const [open, setOpen] = useState(index === 0);
   const [review, setReview] = useState<ModuleReview | null>(null);
@@ -514,6 +517,17 @@ export default function ModuleCard({
               <span aria-hidden>✨</span>
               {reviewing ? 'Coach reading module…' : 'Coach this module'}
             </button>
+            {onExportPdf && (
+              <button
+                type="button"
+                onClick={onExportPdf}
+                className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                title="Save this module as a PDF you can upload into Articulate"
+              >
+                <span aria-hidden>📄</span>
+                Download module PDF
+              </button>
+            )}
             {reviewError && <div className="text-xs text-rose-700">{reviewError}</div>}
           </div>
 

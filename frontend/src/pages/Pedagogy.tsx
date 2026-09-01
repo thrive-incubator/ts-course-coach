@@ -6,6 +6,7 @@ import WorkspaceHeader from '../components/WorkspaceHeader';
 import { Field, Select, TextInput, Textarea } from '../components/Field';
 import { useProposal } from '../hooks/useProposal';
 import { emptyModule, type ModuleMaterial } from '../types/proposal';
+import { exportModulePdf, exportSection1Pdf, exportSection3Pdf } from '../services/pdfExport';
 
 const COURSE_TYPES = [
   'Year-Long Certificate',
@@ -257,6 +258,23 @@ export default function Pedagogy() {
               rows={3}
             />
           </Field>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+            <div>
+              <div className="text-sm font-semibold text-violet-900">Export Section 1 as PDF</div>
+              <div className="text-xs text-slate-600">
+                Save this section as a PDF you can upload into Articulate (or share with a
+                colleague).
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportSection1Pdf(proposal)}
+              className="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+            >
+              📄 Download Section 1 PDF
+            </button>
+          </div>
         </section>
 
         {/* Modules */}
@@ -317,6 +335,7 @@ export default function Pedagogy() {
                   ? () => moveModule(i, i + 1)
                   : undefined
               }
+              onExportPdf={() => exportModulePdf(proposal, m, i)}
             />
           ))}
 
@@ -435,6 +454,23 @@ export default function Pedagogy() {
               rows={3}
             />
           </Field>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+            <div>
+              <div className="text-sm font-semibold text-violet-900">Export Section 3 as PDF</div>
+              <div className="text-xs text-slate-600">
+                Save this section as a PDF you can upload into Articulate (or share with a
+                colleague).
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => exportSection3Pdf(proposal)}
+              className="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+            >
+              📄 Download Section 3 PDF
+            </button>
+          </div>
         </section>
 
         <div className="rounded-2xl border border-violet-200 bg-violet-50 p-6">
