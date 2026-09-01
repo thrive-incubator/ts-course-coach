@@ -19,7 +19,12 @@ const COURSE_TYPES = [
   'Microlearning',
   'Other',
 ];
-const COURSE_FORMATS = ['In-Person', 'Virtual Sync', 'Async', 'Other'];
+
+const SPARSE_THRESHOLD_CHARS = 120;
+
+function isSparse(text: string): boolean {
+  return text.trim().length < SPARSE_THRESHOLD_CHARS;
+}
 
 export default function Marketing() {
   const {
@@ -116,11 +121,14 @@ export default function Marketing() {
                 options={COURSE_TYPES}
               />
             </Field>
-            <Field label="Course format">
-              <Select
+            <Field
+              label="Course format"
+              hint="If the course blends more than one, list them all — e.g. 'In-person + Async', 'Virtual sync + Async with 1 in-person retreat'."
+            >
+              <TextInput
                 value={proposal.course_overview.course_format}
                 onChange={(v) => updateSection('course_overview', { course_format: v })}
-                options={COURSE_FORMATS}
+                placeholder="e.g. Virtual sync + Async"
               />
             </Field>
           </div>
@@ -194,9 +202,32 @@ export default function Marketing() {
             could buy elsewhere?
           </p>
 
+          <p className="mb-4 text-xs italic text-slate-500">
+            These three boxes are auto-imported from your Course Conceptualization Form upload.
+            If any come in blank or thin, the Coach appears to help you expand or strengthen them.
+          </p>
+
           <Field
             label="Needs statement"
-            hint="What practitioner or systemic gap does this course close? Write in your own words — no Coach here on purpose."
+            hint="What practitioner or systemic gap does this course close?"
+            coach={
+              isSparse(proposal.rationale.needs_statement) ? (
+                <CoachButton
+                  section="rationale"
+                  field="needs_statement"
+                  fieldLabel="Needs statement"
+                  currentValue={proposal.rationale.needs_statement}
+                  courseContext={courseContext}
+                  onApplyExample={(v) =>
+                    updateSection('rationale', {
+                      needs_statement: proposal.rationale.needs_statement
+                        ? proposal.rationale.needs_statement + '\n\n' + v
+                        : v,
+                    })
+                  }
+                />
+              ) : undefined
+            }
           >
             <Textarea
               value={proposal.rationale.needs_statement}
@@ -208,6 +239,24 @@ export default function Marketing() {
           <Field
             label="Evidence of demand"
             hint="Waitlists, surveys, workforce reports, employer requests, CEU shifts…"
+            coach={
+              isSparse(proposal.rationale.evidence_of_demand) ? (
+                <CoachButton
+                  section="rationale"
+                  field="evidence_of_demand"
+                  fieldLabel="Evidence of demand"
+                  currentValue={proposal.rationale.evidence_of_demand}
+                  courseContext={courseContext}
+                  onApplyExample={(v) =>
+                    updateSection('rationale', {
+                      evidence_of_demand: proposal.rationale.evidence_of_demand
+                        ? proposal.rationale.evidence_of_demand + '\n\n' + v
+                        : v,
+                    })
+                  }
+                />
+              ) : undefined
+            }
           >
             <Textarea
               value={proposal.rationale.evidence_of_demand}
@@ -219,6 +268,24 @@ export default function Marketing() {
           <Field
             label="Competitive landscape"
             hint="Every learner has alternatives — name 2-3 and your distinct wedge."
+            coach={
+              isSparse(proposal.rationale.competitive_landscape) ? (
+                <CoachButton
+                  section="rationale"
+                  field="competitive_landscape"
+                  fieldLabel="Competitive landscape"
+                  currentValue={proposal.rationale.competitive_landscape}
+                  courseContext={courseContext}
+                  onApplyExample={(v) =>
+                    updateSection('rationale', {
+                      competitive_landscape: proposal.rationale.competitive_landscape
+                        ? proposal.rationale.competitive_landscape + '\n\n' + v
+                        : v,
+                    })
+                  }
+                />
+              ) : undefined
+            }
           >
             <Textarea
               value={proposal.rationale.competitive_landscape}
@@ -239,105 +306,21 @@ export default function Marketing() {
           </Field>
         </section>
 
-        {/* Recruitment & enrollment */}
-        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        {/* Section 2 — Outreach & enrollment */}
+        <div className="mb-4 mt-8">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
             Section 2
           </div>
-          <h2 className="mb-1 text-xl font-bold text-slate-900">Recruitment &amp; enrollment</h2>
-          <p className="mb-6 text-sm text-slate-500">
-            Where do you find the right people, and how do you select them?
+          <h2 className="text-xl font-bold text-slate-900">Outreach &amp; enrollment</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Where do you find the right people, what's the message that reaches them, and how do
+            you select who gets in?
           </p>
-
-          <Field
-            label="Recruitment"
-            hint="Where does this audience already gather? Which listservs, associations, LinkedIn groups, conferences, and partner orgs get you in front of them?"
-            coach={
-              <CoachButton
-                section="enrollment"
-                field="recruitment"
-                fieldLabel="Recruitment"
-                currentValue={proposal.enrollment.recruitment}
-                courseContext={courseContext}
-                onApplyExample={(v) =>
-                  updateSection('enrollment', {
-                    recruitment: proposal.enrollment.recruitment
-                      ? proposal.enrollment.recruitment + '\n\n' + v
-                      : v,
-                  })
-                }
-              />
-            }
-          >
-            <Textarea
-              value={proposal.enrollment.recruitment}
-              onChange={(v) => updateSection('enrollment', { recruitment: v })}
-              rows={5}
-            />
-          </Field>
-
-          <Field
-            label="Marketing"
-            hint="What one line makes them stop scrolling? What proof points unlock trust? Which channels carry the message?"
-            coach={
-              <CoachButton
-                section="enrollment"
-                field="marketing"
-                fieldLabel="Marketing"
-                currentValue={proposal.enrollment.marketing}
-                courseContext={courseContext}
-                onApplyExample={(v) =>
-                  updateSection('enrollment', {
-                    marketing: proposal.enrollment.marketing
-                      ? proposal.enrollment.marketing + '\n\n' + v
-                      : v,
-                  })
-                }
-              />
-            }
-          >
-            <Textarea
-              value={proposal.enrollment.marketing}
-              onChange={(v) => updateSection('enrollment', { marketing: v })}
-              rows={5}
-            />
-          </Field>
-
-          <Field
-            label="Admissions criteria & selection process"
-            hint="What makes someone a fit? What's the intake step?"
-          >
-            <div className="mb-2 flex items-center gap-2 text-xs">
-              <input
-                id="admissions-skip"
-                type="checkbox"
-                checked={proposal.enrollment.admissions_skip}
-                onChange={(e) =>
-                  updateSection('enrollment', { admissions_skip: e.target.checked })
-                }
-                className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600"
-              />
-              <label htmlFor="admissions-skip" className="text-slate-600">
-                Skip here — no separate admissions criteria for this course
-              </label>
-            </div>
-            {proposal.enrollment.admissions_skip ? (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs italic text-slate-500">
-                Skipped. Open enrollment — anyone who registers can attend.
-              </div>
-            ) : (
-              <Textarea
-                value={proposal.enrollment.admissions_criteria}
-                onChange={(v) => updateSection('enrollment', { admissions_criteria: v })}
-                rows={4}
-              />
-            )}
-          </Field>
-        </section>
+        </div>
 
         <MessagingSection courseContext={courseContext} />
         <OutreachPipelinesSection courseContext={courseContext} />
-        <AutoMarketingKitSection />
+        <AdmissionsSection />
 
         {/* Pricing & financials */}
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -400,6 +383,7 @@ export default function Marketing() {
 
         {/* Social Media Marketing Plan */}
         <SocialMediaPlanSection />
+        <AutoMarketingKitSection />
         <OutreachChecklistSection />
       </main>
     </div>
@@ -517,7 +501,7 @@ function SocialMediaPlanSection() {
 
       <Field
         label="Awareness hook — the gap this course fills"
-        hint="The problem or missed opportunity the audience already feels. Fuels the first third of the calendar."
+        hint="The problem or missed opportunity the audience already feels."
       >
         <Textarea
           value={social.awareness_hook}
@@ -549,24 +533,13 @@ function SocialMediaPlanSection() {
       </Field>
 
       <Field
-        label="Differentiators"
-        hint="Faculty names, guest experts, curriculum shape, capstone, endorsements, cohort model."
+        label="Noteworthy course feature"
+        hint="Prominent speaker/faculty names, CEUs, competency crosswalks, capstone projects, alumni outcomes, etc."
       >
         <Textarea
           value={social.differentiators}
           onChange={(v) => updateSection('social_plan', { differentiators: v })}
           rows={4}
-        />
-      </Field>
-
-      <Field
-        label="Proof points"
-        hint="Accreditation, competency crosswalks, alumni outcomes, institutional home."
-      >
-        <Textarea
-          value={social.proof_points}
-          onChange={(v) => updateSection('social_plan', { proof_points: v })}
-          rows={3}
         />
       </Field>
 
@@ -706,7 +679,7 @@ function MessagingSection({ courseContext }: { courseContext: Record<string, str
         Messaging
       </div>
       <h2 className="mb-1 text-xl font-bold text-slate-900">
-        Your talking points → catchy options
+        Your Talking Points
       </h2>
       <p className="mb-6 text-sm text-slate-500">
         Say what you think the message should be, in your own words. Then the Coach turns your
@@ -794,6 +767,176 @@ function OutreachPipelinesSection({
   );
 }
 
+function AdmissionsSection() {
+  const { proposal, updateSection } = useProposal();
+  const criteria = proposal.enrollment.admissions_criteria;
+  const courseName = proposal.course_overview.course_name;
+  const skipped = proposal.enrollment.admissions_skip;
+
+  function downloadApplication() {
+    const md = renderCourseApplicationMarkdown(courseName, criteria);
+    const slug =
+      (courseName || 'course')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40) || 'course';
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug}-course-application.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  const canGenerate = !skipped && criteria.trim().length > 0;
+
+  return (
+    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+        Admissions
+      </div>
+      <h2 className="mb-1 text-xl font-bold text-slate-900">
+        Admissions criteria &amp; selection process
+      </h2>
+      <p className="mb-6 text-sm text-slate-500">
+        Define who's a fit and how you'll pick them, then generate a ready-to-send
+        Course Application built from your criteria.
+      </p>
+
+      <Field
+        label="Admissions criteria & selection process"
+        hint="What will your selection criteria be? And what will your selection process look like?"
+      >
+        <div className="mb-2 flex items-center gap-2 text-xs">
+          <input
+            id="admissions-skip"
+            type="checkbox"
+            checked={skipped}
+            onChange={(e) =>
+              updateSection('enrollment', { admissions_skip: e.target.checked })
+            }
+            className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600"
+          />
+          <label htmlFor="admissions-skip" className="text-slate-600">
+            Skip here — no separate admissions criteria for this course
+          </label>
+        </div>
+        {skipped ? (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs italic text-slate-500">
+            Skipped. Open enrollment — anyone who registers can attend.
+          </div>
+        ) : (
+          <Textarea
+            value={criteria}
+            onChange={(v) => updateSection('enrollment', { admissions_criteria: v })}
+            rows={5}
+          />
+        )}
+      </Field>
+
+      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+        <div className="mb-2 text-sm font-semibold text-emerald-900">
+          Generate a downloadable Course Application
+        </div>
+        <p className="mb-4 text-xs text-slate-700">
+          Builds a full application form using your selection criteria above plus standard
+          applicant fields (name, title, organization, email, phone). Downloads as a markdown
+          file you can drop into Docs, print, or hand off to your registration system.
+        </p>
+        <button
+          type="button"
+          onClick={downloadApplication}
+          disabled={!canGenerate}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          title={canGenerate ? undefined : 'Add selection criteria first (or uncheck Skip)'}
+        >
+          Generate Course Application ↓
+        </button>
+        {!canGenerate && (
+          <p className="mt-2 text-xs italic text-slate-600">
+            {skipped
+              ? 'Uncheck "Skip" and add your selection criteria to enable.'
+              : 'Add your selection criteria above to enable.'}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function renderCourseApplicationMarkdown(courseName: string, criteria: string): string {
+  const title = courseName || 'Course';
+  const criteriaLines = criteria
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  const lines: string[] = [];
+  lines.push(`# Course Application: ${title}`);
+  lines.push('');
+  lines.push(
+    'Thank you for your interest in this course. Please complete the sections below. ' +
+      'Responses help us confirm fit and prepare for a strong cohort experience.'
+  );
+  lines.push('');
+  lines.push('## Applicant Information');
+  lines.push('- **Full name:** ');
+  lines.push('- **Preferred pronouns:** ');
+  lines.push('- **Title / Role:** ');
+  lines.push('- **Organization / Affiliation:** ');
+  lines.push('- **Email:** ');
+  lines.push('- **Phone:** ');
+  lines.push('- **Mailing address:** ');
+  lines.push('- **How did you hear about this course?** ');
+  lines.push('');
+  lines.push('## Professional Background');
+  lines.push('Describe your current role and relevant experience (2–3 paragraphs):');
+  lines.push('');
+  lines.push('_[Your response here]_');
+  lines.push('');
+  lines.push('## Selection Criteria');
+  if (criteriaLines.length > 0) {
+    lines.push('This course looks for applicants who meet the following criteria:');
+    lines.push('');
+    for (const c of criteriaLines) {
+      const cleaned = c.replace(/^[-*•]\s*/, '');
+      lines.push(`- ${cleaned}`);
+    }
+    lines.push('');
+    lines.push('### Applicant Statement');
+    lines.push(
+      'Please respond to each criterion above. Describe how your background, current work, ' +
+        'and goals align (1–2 paragraphs per criterion).'
+    );
+    lines.push('');
+    lines.push('_[Your responses here]_');
+  } else {
+    lines.push('_[Selection criteria will appear here once added to the workspace.]_');
+  }
+  lines.push('');
+  lines.push('## Why Now');
+  lines.push('Why are you seeking this course at this point in your career? (1 paragraph)');
+  lines.push('');
+  lines.push('_[Your response here]_');
+  lines.push('');
+  lines.push('## Commitment & Logistics');
+  lines.push('- **Can you attend all scheduled sessions?** Yes / No / Partial (explain)');
+  lines.push('- **Tuition sponsorship or scholarship needed?** Yes / No');
+  lines.push('- **Accommodations we should be aware of?** ');
+  lines.push('');
+  lines.push('## Signature');
+  lines.push('By submitting this application, I confirm the information above is accurate.');
+  lines.push('');
+  lines.push('**Signature:** ______________________________');
+  lines.push('');
+  lines.push('**Date:** ______________________________');
+  lines.push('');
+  return lines.join('\n');
+}
+
 function AutoMarketingKitSection() {
   const { proposal } = useProposal();
   const [pkg, setPkg] = useState<MarketingPackage | null>(null);
@@ -836,7 +979,6 @@ function AutoMarketingKitSection() {
           question, a module or two, your messaging talking points — Coach reads all
           of it and drafts a course one-pager, ready-to-post social copy, an info-session
           outline, an announcement email, a Georgetown catalog snippet, and an FAQ.
-          Every asset uses <em>your words</em>; nothing is invented.
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -1233,18 +1375,17 @@ const OUTREACH_CHECKLIST_ITEMS = [
   { key: 'info_session', label: 'Info-session content (slides / talking points)' },
   { key: 'constant_contact', label: 'Constant Contact emails scheduled' },
   { key: 'application', label: 'Application / registration form live' },
-  { key: 'georgetown_snippet', label: 'Course snippet sent to Georgetown for approval' },
+  { key: 'georgetown_snippet', label: 'Georgetown course catalog description drafted' },
   { key: 'one_pager', label: 'One-pager PDF circulating' },
   { key: 'partner_orgs', label: 'Partner orgs notified (listservs, associations)' },
   { key: 'faculty_bios', label: 'Faculty bios + headshots collected' },
-  { key: 'landing_page', label: 'Landing page live with apply link' },
+  { key: 'landing_page', label: 'Course marketing/registration page on Thrive Center website is live and includes relevant links' },
   { key: 'faq', label: 'FAQ / objection-handler doc' },
 ];
 
 function OutreachChecklistSection() {
   const { proposal, updateSection } = useProposal();
   const done = proposal.marketing_extras.outreach_checklist_done || {};
-  const notes = proposal.marketing_extras.outreach_checklist_notes;
   const total = OUTREACH_CHECKLIST_ITEMS.length;
   const completed = OUTREACH_CHECKLIST_ITEMS.filter((it) => done[it.key]).length;
 
@@ -1263,8 +1404,8 @@ function OutreachChecklistSection() {
         Everything you need to launch
       </h2>
       <p className="mb-6 text-sm text-slate-500">
-        The stuff that gets a course off the ground — social, info session, emails, Georgetown
-        approval, application. Check them off as you go.
+        The following items help get the word out about your course. While not all of these
+        items are required, they provide a useful framework for your outreach strategy.
         <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
           {completed} / {total} done
         </span>
@@ -1293,15 +1434,6 @@ function OutreachChecklistSection() {
         ))}
       </ul>
 
-      <Field label="Notes / owners" hint="Who owns each piece? Any deadlines you're tracking?">
-        <Textarea
-          value={notes}
-          onChange={(v) =>
-            updateSection('marketing_extras', { outreach_checklist_notes: v })
-          }
-          rows={4}
-        />
-      </Field>
     </section>
   );
 }
