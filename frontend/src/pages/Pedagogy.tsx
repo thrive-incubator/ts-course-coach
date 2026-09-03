@@ -348,6 +348,25 @@ export default function Pedagogy() {
               + Add another module
             </button>
           )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+            <div>
+              <div className="text-sm font-semibold text-sky-900">
+                How to use Articulate for my modules
+              </div>
+              <div className="text-xs text-slate-600">
+                Step-by-step guide for building the modules above in Articulate Rise 360.
+              </div>
+            </div>
+            <a
+              href="/articulate-guide.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+            >
+              📘 Open the guide
+            </a>
+          </div>
         </section>
 
         {/* Assessment & support */}
