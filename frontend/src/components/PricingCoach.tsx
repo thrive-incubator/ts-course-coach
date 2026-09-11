@@ -65,15 +65,13 @@ export default function PricingCoach(props: Props) {
         <button
           type="button"
           onClick={run}
-          disabled={loading || !canAnalyze}
+          disabled={true}
           className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          title={!canAnalyze ? 'Add a course name and intended audience first' : ''}
+          title="Temporarily disabled — pricing intelligence is being updated"
         >
           {loading
             ? 'Analyzing…'
-            : result
-            ? 'Re-analyze'
-            : '📊 Analyze pricing'}
+            : '📊 Analyze pricing (updating)'}
         </button>
       </div>
 
