@@ -9,3 +9,4 @@ logs/
 tests/
 .pytest_cache/
 .git/
+data/

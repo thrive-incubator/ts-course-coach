@@ -8,6 +8,7 @@ BACKEND_SERVICE="ts-course-coach-backend"
 FRONTEND_SERVICE="ts-course-coach-frontend"
 BACKEND_IMAGE="gcr.io/${PROJECT_ID}/ts-course-coach-backend"
 FRONTEND_IMAGE="gcr.io/${PROJECT_ID}/ts-course-coach-frontend"
+DATA_BUCKET="${PROJECT_ID}-data"
 
 # ---- Parse arguments ----
 DEPLOY_BACKEND=true
@@ -59,6 +60,20 @@ else
   echo "  Repository already exists."
 fi
 
+# ---- Ensure data bucket exists (mounted at /app/data by the backend) ----
+echo "=== Ensuring data bucket exists ==="
+if ! gcloud storage buckets describe "gs://${DATA_BUCKET}" --project=$PROJECT_ID > /dev/null 2>&1; then
+  echo "  Creating gs://${DATA_BUCKET}..."
+  gcloud storage buckets create "gs://${DATA_BUCKET}" \
+    --project=$PROJECT_ID \
+    --location=$REGION \
+    --uniform-bucket-level-access \
+    --public-access-prevention
+  echo "  Done."
+else
+  echo "  Bucket already exists."
+fi
+
 # ---- Secrets ----
 echo "=== Checking secrets ==="
 REQUIRED_SECRETS=("jwt-secret-key" "gemini-api-key")
@@ -90,9 +105,12 @@ if [ "$DEPLOY_BACKEND" = true ]; then
     --memory 2Gi \
     --cpu 1 \
     --min-instances 0 \
-    --max-instances 5 \
+    --max-instances 1 \
     --timeout 300 \
     --allow-unauthenticated \
+    --execution-environment gen2 \
+    --add-volume "name=data,type=cloud-storage,bucket=${DATA_BUCKET}" \
+    --add-volume-mount "volume=data,mount-path=/app/data" \
     --set-secrets="GEMINI_API_KEY=gemini-api-key:latest,JWT_SECRET_KEY=jwt-secret-key:latest" \
     --set-env-vars="FIREBASE_PROJECT_ID=${PROJECT_ID},DEBUG=false" \
     --format='value(status.url)')

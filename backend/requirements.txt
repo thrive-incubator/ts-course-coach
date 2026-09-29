@@ -17,7 +17,7 @@ PyJWT==2.10.1
 python-dotenv==1.1.0
 
 # Gemini
-google-genai
+google-genai==2.18.1
 
 # Document text extraction (for lesson-plan / slide-deck uploads)
 pypdf==5.1.0

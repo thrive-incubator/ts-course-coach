@@ -12,3 +12,4 @@ tests/
 .git/
 .dockerignore
 .gcloudignore
+data/

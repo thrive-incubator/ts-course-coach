@@ -10,7 +10,7 @@
 
 ### Backend
 - **FastAPI** - Python web framework
-- **Local JSON files** under `backend/data/` (proposals, users, sessions) — ephemeral on Cloud Run; Firestore is planned but not yet used
+- **Local JSON files** under `backend/data/` (proposals, users, sessions) — on Cloud Run this path is a mounted GCS bucket (`ts-course-coach-data`), so the backend runs with `max-instances 1`; Firestore is planned but not yet used
 - **Gemini AI** - Google AI
 
 ### Frontend
