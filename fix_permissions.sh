@@ -8,7 +8,7 @@
 
 set -e
 
-PROJECT_ID="ts-ts-course-coach"
+PROJECT_ID="ts-course-coach"
 
 echo "Getting project number for $PROJECT_ID..."
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
@@ -88,7 +88,7 @@ done
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Setting up Cloud Run service account ==="
-SA_NAME="ts-ts-course-coach-runner"
+SA_NAME="ts-course-coach-runner"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 if ! gcloud iam service-accounts describe $SA_EMAIL > /dev/null 2>&1; then

@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # ---- Configuration ----
-PROJECT_ID="ts-ts-course-coach"
+PROJECT_ID="ts-course-coach"
 REGION="${REGION:-us-central1}"
-BACKEND_SERVICE="ts-ts-course-coach-backend"
-FRONTEND_SERVICE="ts-ts-course-coach-frontend"
-BACKEND_IMAGE="gcr.io/${PROJECT_ID}/ts-ts-course-coach-backend"
-FRONTEND_IMAGE="gcr.io/${PROJECT_ID}/ts-ts-course-coach-frontend"
+BACKEND_SERVICE="ts-course-coach-backend"
+FRONTEND_SERVICE="ts-course-coach-frontend"
+BACKEND_IMAGE="gcr.io/${PROJECT_ID}/ts-course-coach-backend"
+FRONTEND_IMAGE="gcr.io/${PROJECT_ID}/ts-course-coach-frontend"
 
 # ---- Parse arguments ----
 DEPLOY_BACKEND=true
@@ -31,7 +31,7 @@ gcloud auth print-identity-token > /dev/null 2>&1 || gcloud auth login
 gcloud config set project $PROJECT_ID
 
 # ---- Auto-run fix_permissions.sh on first deploy ----
-SA_NAME="ts-ts-course-coach-runner"
+SA_NAME="ts-course-coach-runner"
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

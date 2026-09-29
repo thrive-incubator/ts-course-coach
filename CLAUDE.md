@@ -4,7 +4,7 @@
 
 **TS Course Coach** - [Brief description to be filled in]
 
-- **GCP Project**: `ts-ts-course-coach`
+- **GCP Project**: `ts-course-coach`
 
 ## Tech Stack
 
@@ -55,9 +55,9 @@ All endpoints prefixed with `/api/v1/`:
 
 ## Deployment
 
-- **GCP Project**: `ts-ts-course-coach`
+- **GCP Project**: `ts-course-coach`
 - **Region**: `us-central1`
-- **Services**: `ts-ts-course-coach-backend`, `ts-ts-course-coach-frontend`
+- **Services**: `ts-course-coach-backend`, `ts-course-coach-frontend`
 - **Secrets**: - `jwt-secret-key`, `gemini-api-key`
 
 ## Code Conventions
