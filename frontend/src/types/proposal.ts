@@ -37,6 +37,34 @@ export interface ModuleMaterial {
   error?: string;
 }
 
+export interface SyllabusWeek {
+  id: string;
+  week_label: string;
+  date_range: string;
+  module_ref: string;
+  topic: string;
+  readings: string;
+  activities: string;
+  assignment_due: string;
+}
+
+export interface SyllabusAssignment {
+  id: string;
+  name: string;
+  due_date: string;
+  weight: string;
+  description: string;
+}
+
+const GEORGETOWN_POLICIES = {
+  academic_integrity: 'All students are expected to maintain the highest standards of academic integrity. Any form of academic dishonesty — including plagiarism, fabrication, cheating, or facilitating academic dishonesty — is a serious violation that may result in course failure and additional disciplinary action. Students are responsible for understanding the Honor System and seeking clarification when unsure whether a specific action constitutes a violation.',
+  ada: 'Thrive Academy is committed to providing reasonable accommodations for students with disabilities. If you require accommodations, please contact the course instructor as early as possible so arrangements can be made. Documentation from a qualified professional may be requested.',
+  title_ix: 'Thrive Academy prohibits sex and gender-based discrimination, including sexual harassment, sexual assault, dating and domestic violence, and stalking. Faculty are considered responsible employees and must report disclosures of such conduct to the Title IX Coordinator. Confidential resources are available for students who prefer to speak privately.',
+  anti_discrimination: 'Thrive Academy does not discriminate on the basis of age, color, disability, family responsibilities, gender identity or expression, genetic information, marital status, national origin, personal appearance, political affiliation, race, religion, sex, sexual orientation, source of income, or veteran status in its programs or activities.',
+  student_support: 'Course staff are committed to your success. Office hours are listed above. Beyond the instructor, learners may access cohort peer discussion, scheduled 1:1 check-ins, and asynchronous support channels. If you are struggling — academically, logistically, or personally — reach out early.',
+  netiquette: 'In virtual sessions and discussion threads, treat classmates as you would in a shared room: cameras on when able, microphones muted when not speaking, chat used for substantive questions, and disagreement expressed with care. Protect the confidentiality of case material shared by peers.',
+};
+
 export interface CourseModule {
   id: string;
   module_name: string;
@@ -125,6 +153,42 @@ export interface Proposal {
     evaluation_outcomes: string;
     cqi: string;
   };
+  syllabus: {
+    course_number: string;
+    instructor_name: string;
+    instructor_credentials: string;
+    instructor_email: string;
+    instructor_phone: string;
+    office_hours: string;
+    semester: string;
+    start_date: string;
+    end_date: string;
+    meeting_days_times: string;
+    format: string;
+    location: string;
+    credit_hours: string;
+    ceus: string;
+    grading_mode: string;
+    weekly_time_budget: string;
+    description_override: string;
+    objectives_override: string;
+    knowledge_skills: string;
+    required_texts: string;
+    recommended_texts: string;
+    technology_requirements: string;
+    weeks: SyllabusWeek[];
+    assignments: SyllabusAssignment[];
+    grading_breakdown: string;
+    late_work_policy: string;
+    attendance_policy: string;
+    academic_integrity_policy: string;
+    ada_statement: string;
+    title_ix_statement: string;
+    anti_discrimination_statement: string;
+    student_support_statement: string;
+    netiquette_statement: string;
+    additional_policies: string;
+  };
   financials: {
     financial_overview: string;
   };
@@ -201,6 +265,42 @@ export const EMPTY_PROPOSAL: Proposal = {
     evaluation_outcomes: '',
     cqi: '',
   },
+  syllabus: {
+    course_number: '',
+    instructor_name: '',
+    instructor_credentials: '',
+    instructor_email: '',
+    instructor_phone: '',
+    office_hours: '',
+    semester: '',
+    start_date: '',
+    end_date: '',
+    meeting_days_times: '',
+    format: '',
+    location: '',
+    credit_hours: '',
+    ceus: '',
+    grading_mode: 'Letter grade',
+    weekly_time_budget: '',
+    description_override: '',
+    objectives_override: '',
+    knowledge_skills: '',
+    required_texts: '',
+    recommended_texts: '',
+    technology_requirements: '',
+    weeks: [],
+    assignments: [],
+    grading_breakdown: '',
+    late_work_policy: '',
+    attendance_policy: '',
+    academic_integrity_policy: GEORGETOWN_POLICIES.academic_integrity,
+    ada_statement: GEORGETOWN_POLICIES.ada,
+    title_ix_statement: GEORGETOWN_POLICIES.title_ix,
+    anti_discrimination_statement: GEORGETOWN_POLICIES.anti_discrimination,
+    student_support_statement: GEORGETOWN_POLICIES.student_support,
+    netiquette_statement: GEORGETOWN_POLICIES.netiquette,
+    additional_policies: '',
+  },
   financials: { financial_overview: '' },
   social_plan: {
     campaign_weeks: '12',
@@ -226,6 +326,37 @@ export function newModuleId(): string {
 
 export function newMaterialId(): string {
   return 'mat_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+export function newWeekId(): string {
+  return 'wk_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+export function newAssignmentId(): string {
+  return 'asn_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+export function emptyWeek(): SyllabusWeek {
+  return {
+    id: newWeekId(),
+    week_label: '',
+    date_range: '',
+    module_ref: '',
+    topic: '',
+    readings: '',
+    activities: '',
+    assignment_due: '',
+  };
+}
+
+export function emptyAssignment(): SyllabusAssignment {
+  return {
+    id: newAssignmentId(),
+    name: '',
+    due_date: '',
+    weight: '',
+    description: '',
+  };
 }
 
 export function emptyModule(): CourseModule {

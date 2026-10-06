@@ -156,6 +156,104 @@ export function exportSection3Pdf(proposal: Proposal) {
   });
 }
 
+export function exportSyllabusPdf(proposal: Proposal) {
+  const co = proposal.course_overview;
+  const d = proposal.design;
+  const s = proposal.syllabus;
+  const effectiveDescription = s.description_override || co.course_description;
+  const effectiveObjectives = s.objectives_override || d.learning_objectives;
+
+  const weekRows =
+    s.weeks.length > 0
+      ? `<table>
+          <tr><th>Week</th><th>Dates</th><th>Topic</th><th>Readings</th><th>Activities</th><th>Due</th></tr>
+          ${s.weeks
+            .map(
+              (w, i) => `
+            <tr>
+              <td>${escapeHtml(w.week_label || `Week ${i + 1}`)}</td>
+              <td>${escapeHtml(w.date_range)}</td>
+              <td>${escapeHtml(w.topic)}</td>
+              <td>${escapeHtml(w.readings)}</td>
+              <td>${escapeHtml(w.activities)}</td>
+              <td>${escapeHtml(w.assignment_due)}</td>
+            </tr>`
+            )
+            .join('')}
+        </table>`
+      : '<div class="empty">No weekly schedule yet.</div>';
+
+  const assignmentRows =
+    s.assignments.length > 0
+      ? `<table>
+          <tr><th>Assignment</th><th>Due</th><th>Weight</th><th>Description</th></tr>
+          ${s.assignments
+            .map(
+              (a) => `
+            <tr>
+              <td>${escapeHtml(a.name)}</td>
+              <td>${escapeHtml(a.due_date)}</td>
+              <td>${escapeHtml(a.weight)}</td>
+              <td>${escapeHtml(a.description)}</td>
+            </tr>`
+            )
+            .join('')}
+        </table>`
+      : '<div class="empty">No assignments listed.</div>';
+
+  const body = `
+    ${courseHeader(proposal)}
+    <h2>Syllabus</h2>
+    <div class="kv">
+      <div class="k">Course number</div><div class="v">${escapeHtml(s.course_number || '—')}</div>
+      <div class="k">Semester</div><div class="v">${escapeHtml(s.semester || '—')}</div>
+      <div class="k">Dates</div><div class="v">${escapeHtml([s.start_date, s.end_date].filter(Boolean).join(' – ') || '—')}</div>
+      <div class="k">Format</div><div class="v">${escapeHtml(s.format || co.course_format || '—')}</div>
+      <div class="k">Location</div><div class="v">${escapeHtml(s.location || '—')}</div>
+      <div class="k">Meeting times</div><div class="v">${escapeHtml(s.meeting_days_times || '—')}</div>
+      <div class="k">Credit hours / CEUs</div><div class="v">${escapeHtml([s.credit_hours && `${s.credit_hours} credit hrs`, s.ceus && `${s.ceus} CEUs`].filter(Boolean).join(' · ') || '—')}</div>
+      <div class="k">Grading mode</div><div class="v">${escapeHtml(s.grading_mode || '—')}</div>
+      <div class="k">Weekly time budget</div><div class="v">${escapeHtml(s.weekly_time_budget || '—')}</div>
+    </div>
+    <h2>Instructor</h2>
+    <div class="kv">
+      <div class="k">Name</div><div class="v">${escapeHtml(s.instructor_name || co.faculty || '—')}</div>
+      <div class="k">Credentials</div><div class="v">${escapeHtml(s.instructor_credentials || '—')}</div>
+      <div class="k">Email</div><div class="v">${escapeHtml(s.instructor_email || '—')}</div>
+      <div class="k">Phone</div><div class="v">${escapeHtml(s.instructor_phone || '—')}</div>
+      <div class="k">Office hours</div><div class="v">${escapeHtml(s.office_hours || '—')}</div>
+    </div>
+    <h2>Course description</h2>
+    ${field('Description', effectiveDescription)}
+    ${field('Essential question', d.essential_question)}
+    ${field('Learning objectives', effectiveObjectives)}
+    ${field('Knowledge + skills', s.knowledge_skills)}
+    <h2>Materials + requirements</h2>
+    ${field('Required texts', s.required_texts)}
+    ${field('Recommended texts', s.recommended_texts)}
+    ${field('Technology requirements', s.technology_requirements || d.technology_needs)}
+    <h2>Weekly schedule</h2>
+    ${weekRows}
+    <h2>Assignments + grading</h2>
+    ${assignmentRows}
+    ${field('Grading breakdown', s.grading_breakdown)}
+    <h2>Policies</h2>
+    ${field('Late work', s.late_work_policy)}
+    ${field('Attendance', s.attendance_policy)}
+    ${field('Academic integrity', s.academic_integrity_policy)}
+    ${field('ADA / accommodations', s.ada_statement)}
+    ${field('Title IX', s.title_ix_statement)}
+    ${field('Anti-discrimination', s.anti_discrimination_statement)}
+    ${field('Student support', s.student_support_statement)}
+    ${field('Netiquette / community', s.netiquette_statement)}
+    ${field('Additional policies', s.additional_policies)}
+  `;
+  openPrintWindow({
+    title: `${co.course_name || 'Course'} — Syllabus`,
+    bodyHtml: body,
+  });
+}
+
 export function exportModulePdf(
   proposal: Proposal,
   module: CourseModule,

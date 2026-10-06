@@ -5,6 +5,7 @@ import Pedagogy from './pages/Pedagogy';
 import MarketingBrief from './pages/MarketingBrief';
 import Preview from './pages/Preview';
 import ArticulateGuide from './pages/ArticulateGuide';
+import Syllabus from './pages/Syllabus';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/marketing" element={<Marketing />} />
       <Route path="/pedagogy" element={<Pedagogy />} />
+      <Route path="/syllabus" element={<Syllabus />} />
       <Route path="/brief" element={<MarketingBrief />} />
       <Route path="/preview" element={<Preview />} />
       <Route path="/articulate-guide" element={<ArticulateGuide />} />

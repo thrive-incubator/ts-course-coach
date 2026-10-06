@@ -510,6 +510,13 @@ export default function Pedagogy() {
             </button>
             <button
               type="button"
+              onClick={() => navigate('/syllabus')}
+              className="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-sky-700"
+            >
+              📘 Build the syllabus →
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/preview')}
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
             >

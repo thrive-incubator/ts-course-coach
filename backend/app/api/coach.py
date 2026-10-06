@@ -172,6 +172,15 @@ FIELD_PROMPTS: dict[str, str] = {
         "to name: office hours cadence, cohort community mechanisms (Slack? forum?), 1:1 access, "
         "and any TA/coach layer. Suggest 2 support elements that match the course format."
     ),
+    "knowledge_skills": (
+        "Coach the faculty on their syllabus Knowledge + Skills table. The strongest tables name "
+        "concrete concepts learners will know (nouns — frameworks, models, terms) AND concrete "
+        "skills learners can perform (verbs — specific moves). Weak tables repeat the learning "
+        "objectives verbatim, or mix knowledge and skills together. Read the draft. If the "
+        "entries blur the two, name the fuzziness and show a sharper rewrite of one line. "
+        "Suggest 3 example rows — a mix of knowledge and skills — grounded in the course's "
+        "objectives and essential question."
+    ),
     "cqi": (
         "Coach the faculty on CQI & Staying Current. Ask them to name: mid-course pulse survey, "
         "end-of-cohort NPS, an update cadence for materials (quarterly? per-cohort?), and how "

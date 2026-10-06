@@ -204,8 +204,33 @@ export default function Landing() {
           </button>
         </div>
 
+        <div className="mt-8 rounded-2xl border border-sky-200 bg-sky-50/40 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
+                Also available
+              </div>
+              <h3 className="mb-1 text-lg font-bold text-slate-900">
+                📘 Build the syllabus
+              </h3>
+              <p className="text-sm text-slate-600">
+                Faculty-facing syllabus builder — course + instructor basics, week-by-week
+                schedule, assignments, and all the Georgetown-style policy boilerplate pre-filled.
+                Auto-pulls from your course design when one exists.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/syllabus')}
+              className="shrink-0 rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700"
+            >
+              Open syllabus builder →
+            </button>
+          </div>
+        </div>
+
         {hasBasics && (
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm">
             <button
               type="button"
               onClick={() => navigate('/preview')}

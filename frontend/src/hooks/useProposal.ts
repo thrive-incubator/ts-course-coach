@@ -73,6 +73,31 @@ export function hydrate(raw: any): Proposal {
     rationale: { ...base.rationale, ...(raw?.rationale || {}) },
     enrollment: { ...base.enrollment, ...(raw?.enrollment || {}) },
     design: { ...base.design, ...(raw?.design || {}) },
+    syllabus: {
+      ...base.syllabus,
+      ...(raw?.syllabus || {}),
+      weeks: Array.isArray(raw?.syllabus?.weeks)
+        ? raw.syllabus.weeks.map((w: any) => ({
+            id: w.id || `wk_${Math.random().toString(36).slice(2, 10)}`,
+            week_label: w.week_label || '',
+            date_range: w.date_range || '',
+            module_ref: w.module_ref || '',
+            topic: w.topic || '',
+            readings: w.readings || '',
+            activities: w.activities || '',
+            assignment_due: w.assignment_due || '',
+          }))
+        : [],
+      assignments: Array.isArray(raw?.syllabus?.assignments)
+        ? raw.syllabus.assignments.map((a: any) => ({
+            id: a.id || `asn_${Math.random().toString(36).slice(2, 10)}`,
+            name: a.name || '',
+            due_date: a.due_date || '',
+            weight: a.weight || '',
+            description: a.description || '',
+          }))
+        : [],
+    },
     financials: { ...base.financials, ...(raw?.financials || {}) },
     social_plan: { ...base.social_plan, ...(raw?.social_plan || {}) },
     marketing_extras: {
