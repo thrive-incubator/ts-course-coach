@@ -404,9 +404,10 @@ export function analyzePricing(payload: {
 
 export interface PricingCalcResponse {
   total_contact_hours: number;
+  ce_units: number;
   has_synchronous: boolean;
   delivery_label: string;
-  rate_per_hour_usd: number;
+  rate_per_ce_usd: number;
   tuition_usd: number;
   tuition_display: string;
 }

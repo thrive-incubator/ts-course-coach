@@ -82,9 +82,10 @@ export default function PricingCoach(props: Props) {
         </div>
         <h3 className="text-lg font-bold text-slate-900">Calculate your course tuition</h3>
         <p className="mt-1 text-sm text-slate-600">
-          Thrive Academy prices courses per contact hour: <strong>$60/hour</strong> for fully
-          asynchronous / self-paced courses, and <strong>$300/hour</strong> for any course with
-          synchronous content (in-person or virtual). Answer the two questions below.
+          Thrive Academy prices courses per CE, where <strong>10 contact hours = 1 CE</strong>:{' '}
+          <strong>$60/CE</strong> for fully asynchronous / self-paced courses, and{' '}
+          <strong>$300/CE</strong> for hybrid courses (any combination of synchronous and
+          asynchronous content). Answer the two questions below.
         </p>
       </div>
 
@@ -151,8 +152,8 @@ export default function PricingCoach(props: Props) {
           </div>
           <div className="mt-1 text-3xl font-bold text-slate-900">{result.tuition_display}</div>
           <p className="mt-2 text-sm text-slate-700">
-            {result.total_contact_hours} contact hours × ${result.rate_per_hour_usd}/hour —{' '}
-            {result.delivery_label.toLowerCase()}.
+            {result.total_contact_hours} contact hours ÷ 10 = {result.ce_units} CE × $
+            {result.rate_per_ce_usd}/CE — {result.delivery_label.toLowerCase()}.
           </p>
           {props.onApplyPrice && (
             <button

@@ -102,10 +102,12 @@ def _system_instruction() -> str:
     )
 
 
-# Thrive Academy pricing formula (per JB, Oct 2026): tuition = total contact hours x rate,
-# where the rate depends only on whether the course has ANY synchronous component.
-ASYNC_RATE_USD = 60  # fully asynchronous / self-paced
-SYNC_RATE_USD = 300  # any mix that includes in-person or virtual synchronous time
+# Thrive Academy pricing formula (per JB, Oct 2026): convert contact hours to CEs first
+# (10 contact hours = 1 CE), then tuition = CEs x rate, where the rate depends only on
+# whether the course has ANY synchronous component.
+CONTACT_HOURS_PER_CE = 10
+ASYNC_RATE_USD = 60  # per CE — fully asynchronous / self-paced
+SYNC_RATE_USD = 300  # per CE — hybrid: any mix that includes in-person or virtual synchronous time
 
 
 class PricingCalcRequest(BaseModel):
@@ -115,27 +117,30 @@ class PricingCalcRequest(BaseModel):
 
 class PricingCalcResponse(BaseModel):
     total_contact_hours: float
+    ce_units: float
     has_synchronous: bool
     delivery_label: str
-    rate_per_hour_usd: int
+    rate_per_ce_usd: int
     tuition_usd: int
     tuition_display: str
 
 
 @router.post("/calculate", response_model=PricingCalcResponse)
 async def calculate_pricing(req: PricingCalcRequest) -> PricingCalcResponse:
-    """Apply the Thrive Academy per-contact-hour pricing formula."""
+    """Apply the Thrive Academy per-CE pricing formula."""
+    ce_units = req.total_contact_hours / CONTACT_HOURS_PER_CE
     rate = SYNC_RATE_USD if req.has_synchronous else ASYNC_RATE_USD
-    tuition = round(req.total_contact_hours * rate)
+    tuition = round(ce_units * rate)
     return PricingCalcResponse(
         total_contact_hours=req.total_contact_hours,
+        ce_units=round(ce_units, 2),
         has_synchronous=req.has_synchronous,
         delivery_label=(
-            "Includes synchronous content (in-person or virtual)"
+            "Hybrid — includes synchronous content (in-person or virtual)"
             if req.has_synchronous
             else "Fully asynchronous / self-paced"
         ),
-        rate_per_hour_usd=rate,
+        rate_per_ce_usd=rate,
         tuition_usd=tuition,
         tuition_display=f"${tuition:,}",
     )
