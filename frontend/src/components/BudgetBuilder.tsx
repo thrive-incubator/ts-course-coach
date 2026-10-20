@@ -70,6 +70,15 @@ export default function BudgetBuilder({ courseTitle, tuition, budget, onChange }
   const balance = revenue - totalExpenses;
   const margin = revenue ? balance / revenue : 0;
 
+  // Break-even: infrastructure + admin scale with revenue (45%), everything else is fixed.
+  // Each learner contributes their tuition minus that 45%; break-even is fixed costs / that.
+  const totalLearners = REVENUE_LINES.reduce((sum, l) => sum + num(budget[l.key].learners), 0);
+  const avgRate = totalLearners ? revenue / totalLearners : tuitionUsd;
+  const contributionRate = 1 - INFRASTRUCTURE_RATE - ADMIN_SUPPORT_RATE;
+  const breakEvenRevenue = subtotal > 0 ? subtotal / contributionRate : 0;
+  const breakEvenLearners =
+    subtotal > 0 && avgRate > 0 ? Math.ceil(breakEvenRevenue / avgRate) : 0;
+
   const set = (patch: Partial<CourseBudget>) => onChange({ ...budget, ...patch });
   const setLine = (key: RevenueKey, patch: Partial<BudgetRevenueLine>) =>
     set({ [key]: { ...budget[key], ...patch } } as Partial<CourseBudget>);
@@ -323,6 +332,36 @@ export default function BudgetBuilder({ courseTitle, tuition, budget, onChange }
           <span>Operating margin</span>
           <span>{(margin * 100).toFixed(1)}%</span>
         </div>
+
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            Break-even point
+          </div>
+          {breakEvenLearners > 0 ? (
+            <>
+              <div className="text-base font-semibold text-slate-900">
+                {breakEvenLearners} learner{breakEvenLearners === 1 ? '' : 's'} (
+                {money(breakEvenRevenue)} in tuition revenue)
+              </div>
+              <p className="mt-1 text-xs text-slate-600">
+                Faculty and instructional costs of {money(subtotal)}, covered after the 30%
+                infrastructure and 15% administrative support lines, at{' '}
+                {totalLearners ? 'your average' : 'the course'} tuition of {money(avgRate)} per
+                learner.
+                {totalLearners > 0 &&
+                  (totalLearners >= breakEvenLearners
+                    ? ` Your ${totalLearners} projected learners are ${totalLearners - breakEvenLearners} above break-even.`
+                    : ` Your ${totalLearners} projected learners are ${breakEvenLearners - totalLearners} short of break-even.`)}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-600">
+              Fill in tuition and your faculty and instructional costs to see how many learners
+              you need to break even.
+            </p>
+          )}
+        </div>
+
         {num(budget.additional_revenue) > 0 && (
           <p className="mt-2 text-xs text-slate-500">
             Plus {money(num(budget.additional_revenue))} anticipated additional revenue, not

@@ -353,33 +353,6 @@ export default function Marketing() {
             />
           </Field>
 
-          <Field
-            label="Financial overview / business plan"
-            hint="Tuition, cohort-size assumptions, cost drivers, sustainability, projections."
-            coach={
-              <CoachButton
-                section="financials"
-                field="financial_overview"
-                fieldLabel="Financial overview"
-                currentValue={proposal.financials.financial_overview}
-                courseContext={courseContext}
-                onApplyExample={(v) =>
-                  updateSection('financials', {
-                    financial_overview: proposal.financials.financial_overview
-                      ? proposal.financials.financial_overview + '\n\n' + v
-                      : v,
-                  })
-                }
-              />
-            }
-          >
-            <Textarea
-              value={proposal.financials.financial_overview}
-              onChange={(v) => updateSection('financials', { financial_overview: v })}
-              rows={8}
-            />
-          </Field>
-
           <BudgetBuilder
             courseTitle={proposal.course_overview.course_name}
             tuition={proposal.course_overview.tuition}
