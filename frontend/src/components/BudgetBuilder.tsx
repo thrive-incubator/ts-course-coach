@@ -9,11 +9,13 @@ import {
   type BudgetAsyncTask,
   type BudgetCourseType,
   type BudgetFacultyDirector,
+  type BudgetItem,
   type BudgetLine,
   type BudgetRevenueLine,
   type BuildLineKey,
   type CourseBudget,
   type HybridLineKey,
+  emptyItem,
 } from '../types/proposal';
 
 // Rates from the Thrive Academy Course Budget Worksheet (FY27).
@@ -55,6 +57,7 @@ function money(n: number): string {
 }
 
 const lineTotal = (l: BudgetLine) => num(l.quantity) * num(l.rate);
+const itemsTotal = (items: BudgetItem[]) => items.reduce((sum, it) => sum + num(it.amount), 0);
 
 type RevenueKey = 'employer_sponsored' | 'self_pay' | 'scholarship';
 
@@ -83,48 +86,69 @@ interface LineSpec {
   rate: string;
 }
 
-const BUILD_LINES: Record<BuildLineKey, LineSpec> = {
+interface BuildSpec {
+  label: string;
+  hint: string;
+  name: string;
+  namePlaceholder: string;
+  amount: string;
+  addLabel: string;
+}
+
+// People lines capture Name / Allocation; purchase lines capture Description / Cost.
+const PERSON = { amount: 'Allocation' };
+const PURCHASE = { name: 'Description', amount: 'Cost', addLabel: '+ Add another item' };
+
+const BUILD_LINES: Record<BuildLineKey, BuildSpec> = {
   faculty_salaries: {
+    ...PERSON,
     label: 'Faculty director salaries — course design & content development',
-    hint: 'Hours or stipend for building the course. Fringe is added automatically.',
-    quantity: 'Hours (or 1 for a stipend)',
-    rate: 'Rate per hour / stipend',
+    hint: 'One line per faculty director. Fringe is added automatically.',
+    name: 'Faculty name',
+    namePlaceholder: 'e.g. Dr. Jane Smith',
+    addLabel: '+ Add another faculty director',
   },
   subject_matter_experts: {
+    ...PERSON,
     label: 'Subject matter experts / content contributors',
     hint: 'Outside experts who help write or review content.',
-    quantity: 'Number of experts',
-    rate: 'Fee per expert',
+    name: 'Name',
+    namePlaceholder: 'Expert name',
+    addLabel: '+ Add another expert',
   },
   instructional_design: {
+    ...PERSON,
     label: 'Instructional design assistance',
     hint: 'Course mapping, learning objectives, assessment design, LMS build.',
-    quantity: 'Hours',
-    rate: 'Rate per hour',
+    name: 'Name',
+    namePlaceholder: 'Designer or firm',
+    addLabel: '+ Add another',
   },
   media_production: {
+    ...PERSON,
     label: 'Media production',
     hint: 'Video recording/editing, narration, graphics, captioning.',
-    quantity: 'Number of videos / assets',
-    rate: 'Cost each',
+    name: 'Name',
+    namePlaceholder: 'Producer, vendor, or studio',
+    addLabel: '+ Add another',
   },
   technology: {
+    ...PURCHASE,
     label: 'Technology / software / LMS setup',
     hint: 'Licenses, tools, or platform setup needed to build the course.',
-    quantity: 'Quantity',
-    rate: 'Cost each',
+    namePlaceholder: 'e.g. Articulate 360 license',
   },
   materials_licensing: {
+    ...PURCHASE,
     label: 'Course materials & content licensing',
     hint: 'Readings, case studies, images, or other licensed content.',
-    quantity: 'Quantity',
-    rate: 'Cost each',
+    namePlaceholder: 'e.g. HBS case study',
   },
   other: {
+    ...PURCHASE,
     label: 'Other build expenses',
-    hint: 'Anything else you need to build the course — describe it in the notes.',
-    quantity: 'Quantity',
-    rate: 'Cost each',
+    hint: 'Anything else you need to build the course.',
+    namePlaceholder: 'What is it?',
   },
 };
 
@@ -205,9 +229,9 @@ export default function BudgetBuilder(props: Props) {
   const revenue = REVENUE_LINES.reduce((sum, l) => sum + revenueFor(budget[l.key]), 0);
 
   // Phase 1 — Course Building.
-  const buildFringe = lineTotal(budget.build.faculty_salaries) * FRINGE_RATE;
+  const buildFringe = itemsTotal(budget.build.faculty_salaries) * FRINGE_RATE;
   const phase1 =
-    BUILD_LINE_KEYS.reduce((sum, k) => sum + lineTotal(budget.build[k]), 0) + buildFringe;
+    BUILD_LINE_KEYS.reduce((sum, k) => sum + itemsTotal(budget.build[k]), 0) + buildFringe;
   const phase1Remaining = PHASE1_ALLOCATION - phase1;
 
   // Phase 2 — Course Delivery, 2A (hybrid) or 2B (fully asynchronous).
@@ -245,7 +269,7 @@ export default function BudgetBuilder(props: Props) {
   // Faculty distribution check against the salary lines.
   const facultyBuild = budget.faculty_directors.reduce((sum, fd) => sum + num(fd.build), 0);
   const facultyDelivery = budget.faculty_directors.reduce((sum, fd) => sum + num(fd.delivery), 0);
-  const buildSalaryLine = lineTotal(budget.build.faculty_salaries);
+  const buildSalaryLine = itemsTotal(budget.build.faculty_salaries);
   const deliverySalaryLine =
     courseType === 'hybrid'
       ? lineTotal(budget.hybrid.faculty_teaching)
@@ -256,8 +280,8 @@ export default function BudgetBuilder(props: Props) {
   const set = (patch: Partial<CourseBudget>) => onChange({ ...budget, ...patch });
   const setRevenue = (key: RevenueKey, patch: Partial<BudgetRevenueLine>) =>
     set({ [key]: { ...budget[key], ...patch } } as Partial<CourseBudget>);
-  const setBuild = (key: BuildLineKey, patch: Partial<BudgetLine>) =>
-    set({ build: { ...budget.build, [key]: { ...budget.build[key], ...patch } } });
+  const setBuildItems = (key: BuildLineKey, items: BudgetItem[]) =>
+    set({ build: { ...budget.build, [key]: items } });
   const setHybrid = (key: HybridLineKey, patch: Partial<BudgetLine>) =>
     set({ hybrid: { ...budget.hybrid, [key]: { ...budget.hybrid[key], ...patch } } });
   const setTask = (key: AsyncTaskKey, patch: Partial<BudgetAsyncTask>) =>
@@ -296,7 +320,14 @@ export default function BudgetBuilder(props: Props) {
         scholarship: revenueLine(budget.scholarship),
         additional_revenue: numOrNull(budget.additional_revenue),
         additional_revenue_notes: budget.additional_revenue_notes,
-        build: lines(budget.build),
+        build: Object.fromEntries(
+          BUILD_LINE_KEYS.map((k) => [
+            k,
+            budget.build[k]
+              .filter((it) => it.name.trim() || it.amount.trim() || it.notes.trim())
+              .map((it) => ({ name: it.name, amount: numOrNull(it.amount), notes: it.notes })),
+          ]),
+        ),
         hybrid: lines(budget.hybrid),
         async_hourly_rate: numOrNull(budget.async_hourly_rate),
         async_tasks: Object.fromEntries(
@@ -382,6 +413,64 @@ export default function BudgetBuilder(props: Props) {
       </div>
     </div>
   );
+
+  const buildCard = (k: BuildLineKey) => {
+    const spec = BUILD_LINES[k];
+    const items = budget.build[k];
+    const update = (i: number, patch: Partial<BudgetItem>) =>
+      setBuildItems(k, items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+    return (
+      <div key={k} className="mb-3 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="text-sm font-medium text-slate-900">{spec.label}</div>
+        <p className="mb-3 text-xs text-slate-500">{spec.hint}</p>
+        {items.map((it, i) => (
+          <div key={i} className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1.3fr_1fr_1.5fr_auto]">
+            <Field label={spec.name}>
+              <TextInput
+                value={it.name}
+                onChange={(v) => update(i, { name: v })}
+                placeholder={spec.namePlaceholder}
+              />
+            </Field>
+            <Field label={spec.amount}>
+              <TextInput value={it.amount} onChange={(v) => update(i, { amount: v })} placeholder="$" />
+            </Field>
+            <Field label="Notes / assumptions">
+              <TextInput value={it.notes} onChange={(v) => update(i, { notes: v })} />
+            </Field>
+            <div className="mb-6 pb-2 text-xs">
+              {items.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setBuildItems(k, items.filter((_, j) => j !== i))}
+                  className="text-rose-600 hover:underline"
+                >
+                  Remove
+                </button>
+              ) : (
+                <span className="invisible">Remove</span>
+              )}
+            </div>
+          </div>
+        ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setBuildItems(k, [...items, emptyItem()])}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-emerald-400"
+          >
+            {spec.addLabel}
+          </button>
+          <div className="text-sm text-slate-700">
+            {k === 'faculty_salaries' && buildFringe > 0 && (
+              <span className="mr-3 text-xs text-slate-500">+ {money(buildFringe)} fringe (37%)</span>
+            )}
+            Subtotal: <strong>{money(itemsTotal(items))}</strong>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const sectionTitle = (text: string) => (
     <div className="mb-2 mt-6 text-sm font-semibold text-slate-800">{text}</div>
@@ -497,17 +586,8 @@ export default function BudgetBuilder(props: Props) {
       </div>
 
       {sectionTitle('3. Phase 1 — Course Building ($10,000 allocation)')}
-      <p className="mb-3 text-xs text-slate-500">
-        Budget everything needed to build the course. Try to stay within the $10,000 allocation.
-      </p>
-      {BUILD_LINE_KEYS.map((k) =>
-        lineCard(
-          BUILD_LINES[k],
-          budget.build[k],
-          (patch) => setBuild(k, patch),
-          k === 'faculty_salaries' ? buildFringe : undefined,
-        ),
-      )}
+      <p className="mb-3 text-xs text-slate-500">Budget everything needed to build the course.</p>
+      {BUILD_LINE_KEYS.map(buildCard)}
       <div
         className={`rounded-lg border p-3 text-sm ${
           phase1Remaining < 0

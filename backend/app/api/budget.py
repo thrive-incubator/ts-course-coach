@@ -67,6 +67,12 @@ class BudgetLine(BaseModel):
     notes: str = ""
 
 
+class BuildItem(BaseModel):
+    name: str = ""  # person's name, or the item description
+    amount: float | None = None
+    notes: str = ""
+
+
 class AsyncTask(BaseModel):
     performs: bool | None = None
     hours: float | None = None
@@ -92,7 +98,7 @@ class BudgetRequest(BaseModel):
     scholarship: RevenueLine = Field(default_factory=RevenueLine)
     additional_revenue: float | None = None
     additional_revenue_notes: str = ""
-    build: dict[str, BudgetLine] = Field(default_factory=dict)
+    build: dict[str, list[BuildItem]] = Field(default_factory=dict)
     hybrid: dict[str, BudgetLine] = Field(default_factory=dict)
     async_hourly_rate: float | None = None
     async_tasks: dict[str, AsyncTask] = Field(default_factory=dict)
@@ -113,6 +119,27 @@ def _write_lines(ws, rows: dict[str, int], lines: dict[str, BudgetLine]) -> None
         ws[f"C{row}"] = line.rate
         if line.notes:
             ws[f"F{row}"] = line.notes
+
+
+def _write_items(ws, rows: dict[str, int], items_by_key: dict[str, list[BuildItem]]) -> None:
+    """Phase 1 is itemized (name/description + amount). The worksheet has one row per
+    category, so the FY27 Budget cell becomes a sum of the items (still editable in
+    Excel) and the notes column lists each item."""
+    for key, row in rows.items():
+        items = [it for it in items_by_key.get(key, []) if it.name or it.amount or it.notes]
+        if not items:
+            continue
+        amounts = [it.amount for it in items if it.amount]
+        ws[f"D{row}"] = "=" + "+".join(f"{a:g}" for a in amounts) if amounts else 0
+        parts = []
+        for it in items:
+            label = it.name.strip() or "Unnamed"
+            if it.amount:
+                label += f" — ${it.amount:,.0f}"
+            if it.notes.strip():
+                label += f" ({it.notes.strip()})"
+            parts.append(label)
+        ws[f"F{row}"] = "; ".join(parts)
 
 
 def build_workbook(req: BudgetRequest) -> bytes:
@@ -153,7 +180,7 @@ def build_workbook(req: BudgetRequest) -> bytes:
     if req.additional_revenue_notes:
         ws["F25"] = req.additional_revenue_notes
 
-    _write_lines(ws, BUILD_ROWS, req.build)
+    _write_items(ws, BUILD_ROWS, req.build)
     _write_lines(ws, HYBRID_ROWS, req.hybrid)
 
     ws["E55"] = req.async_hourly_rate

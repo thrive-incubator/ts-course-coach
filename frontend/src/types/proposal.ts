@@ -226,6 +226,14 @@ export interface BudgetLine {
   notes: string;
 }
 
+// One Phase 1 line item: a person (faculty, expert, designer, media) or a purchase
+// (tech, materials, other). `name` holds the person's name or the item description.
+export interface BudgetItem {
+  name: string;
+  amount: string;
+  notes: string;
+}
+
 export interface BudgetAsyncTask {
   performs: '' | 'yes' | 'no';
   hours: string;
@@ -282,7 +290,7 @@ export interface CourseBudget {
   scholarship: BudgetRevenueLine;
   additional_revenue: string;
   additional_revenue_notes: string;
-  build: Record<BuildLineKey, BudgetLine>;
+  build: Record<BuildLineKey, BudgetItem[]>;
   hybrid: Record<HybridLineKey, BudgetLine>;
   async_hourly_rate: string;
   async_tasks: Record<AsyncTaskKey, BudgetAsyncTask>;
@@ -291,6 +299,21 @@ export interface CourseBudget {
 
 const emptyLines = <K extends string>(keys: readonly K[]) =>
   Object.fromEntries(keys.map((k) => [k, { quantity: '', rate: '', notes: '' }])) as Record<K, BudgetLine>;
+
+export const emptyItem = (): BudgetItem => ({ name: '', amount: '', notes: '' });
+
+// Older saves stored each build line as quantity × rate; carry the total over as one item.
+function normalizeItems(saved: any): BudgetItem[] {
+  if (Array.isArray(saved) && saved.length) {
+    return saved.map((it: any) => ({ name: it?.name || '', amount: it?.amount || '', notes: it?.notes || '' }));
+  }
+  if (saved && typeof saved === 'object' && (saved.quantity || saved.rate || saved.notes)) {
+    const n = (v: string) => parseFloat(String(v || '').replace(/[^0-9.-]/g, '')) || 0;
+    const total = saved.quantity || saved.rate ? n(saved.quantity) * n(saved.rate) : 0;
+    return [{ name: '', amount: total ? String(total) : '', notes: saved.notes || '' }];
+  }
+  return [emptyItem()];
+}
 
 export const EMPTY_BUDGET: CourseBudget = {
   course_type: '',
@@ -301,7 +324,10 @@ export const EMPTY_BUDGET: CourseBudget = {
   scholarship: { learners: '', rate: '', notes: '' },
   additional_revenue: '',
   additional_revenue_notes: '',
-  build: emptyLines(BUILD_LINE_KEYS),
+  build: Object.fromEntries(BUILD_LINE_KEYS.map((k) => [k, [emptyItem()]])) as Record<
+    BuildLineKey,
+    BudgetItem[]
+  >,
   hybrid: emptyLines(HYBRID_LINE_KEYS),
   async_hourly_rate: '',
   async_tasks: Object.fromEntries(
@@ -318,7 +344,9 @@ export function normalizeBudget(raw: any): CourseBudget {
   return {
     ...EMPTY_BUDGET,
     ...b,
-    build: fill(EMPTY_BUDGET.build, b.build) as CourseBudget['build'],
+    build: Object.fromEntries(
+      BUILD_LINE_KEYS.map((k) => [k, normalizeItems(b.build?.[k])]),
+    ) as CourseBudget['build'],
     hybrid: fill(EMPTY_BUDGET.hybrid, b.hybrid) as CourseBudget['hybrid'],
     async_tasks: fill(EMPTY_BUDGET.async_tasks, b.async_tasks) as CourseBudget['async_tasks'],
     faculty_directors:

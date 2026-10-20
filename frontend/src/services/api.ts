@@ -438,7 +438,7 @@ export interface BudgetPayload {
   scholarship: { learners: number; rate: number | null; notes: string };
   additional_revenue: number | null;
   additional_revenue_notes: string;
-  build: Record<string, BudgetLinePayload>;
+  build: Record<string, { name: string; amount: number | null; notes: string }[]>;
   hybrid: Record<string, BudgetLinePayload>;
   async_hourly_rate: number | null;
   async_tasks: Record<string, { performs: boolean | null; hours: number | null; scope: string }>;
