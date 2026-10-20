@@ -211,49 +211,127 @@ export interface Proposal {
   };
 }
 
-// Mirrors the Thrive Academy Course Budget Worksheet. Numbers are kept as strings
-// so the inputs behave like the rest of the form; they're parsed at calculation time.
+// Mirrors the Thrive Academy Course Budget Worksheet (FY27: Phase 1 Course Building,
+// Phase 2 Course Delivery split by course type). Numbers are kept as strings so the
+// inputs behave like the rest of the form; they're parsed at calculation time.
 export interface BudgetRevenueLine {
   learners: string;
   rate: string;
   notes: string;
 }
 
-export interface BudgetFacultyDirector {
-  name: string;
-  engagement_period: string;
-  allocation: string;
+export interface BudgetLine {
+  quantity: string;
+  rate: string;
+  notes: string;
 }
 
+export interface BudgetAsyncTask {
+  performs: '' | 'yes' | 'no';
+  hours: string;
+  scope: string;
+}
+
+export interface BudgetFacultyDirector {
+  name: string;
+  build: string;
+  delivery: string;
+  role: string;
+}
+
+export type BudgetCourseType = '' | 'hybrid' | 'async';
+
+export const BUILD_LINE_KEYS = [
+  'faculty_salaries',
+  'subject_matter_experts',
+  'instructional_design',
+  'media_production',
+  'technology',
+  'materials_licensing',
+  'other',
+] as const;
+export const HYBRID_LINE_KEYS = [
+  'faculty_teaching',
+  'guest_speakers',
+  'teaching_assistants',
+  'in_person_sessions',
+  'participant_materials',
+  'other',
+] as const;
+export const ASYNC_TASK_KEYS = [
+  'discussion_boards',
+  'learner_questions',
+  'grading',
+  'office_hours',
+  'completion_review',
+  'evaluations_review',
+  'content_updates',
+  'other',
+] as const;
+export type BuildLineKey = (typeof BUILD_LINE_KEYS)[number];
+export type HybridLineKey = (typeof HYBRID_LINE_KEYS)[number];
+export type AsyncTaskKey = (typeof ASYNC_TASK_KEYS)[number];
+
 export interface CourseBudget {
+  // '' = follow the Contact hours by mode breakdown in Course Basics.
+  course_type: BudgetCourseType;
+  target_launch_date: string;
+  prepared_by: string;
   employer_sponsored: BudgetRevenueLine;
   self_pay: BudgetRevenueLine;
   scholarship: BudgetRevenueLine;
   additional_revenue: string;
   additional_revenue_notes: string;
+  build: Record<BuildLineKey, BudgetLine>;
+  hybrid: Record<HybridLineKey, BudgetLine>;
+  async_hourly_rate: string;
+  async_tasks: Record<AsyncTaskKey, BudgetAsyncTask>;
   faculty_directors: BudgetFacultyDirector[];
-  faculty_sharing_notes: string;
-  guest_speakers_count: string;
-  guest_speaker_rate: string;
-  guest_speaker_notes: string;
-  additional_expenses: string;
-  additional_expenses_notes: string;
 }
 
+const emptyLines = <K extends string>(keys: readonly K[]) =>
+  Object.fromEntries(keys.map((k) => [k, { quantity: '', rate: '', notes: '' }])) as Record<K, BudgetLine>;
+
 export const EMPTY_BUDGET: CourseBudget = {
+  course_type: '',
+  target_launch_date: '',
+  prepared_by: '',
   employer_sponsored: { learners: '', rate: '', notes: '' },
   self_pay: { learners: '', rate: '', notes: '' },
   scholarship: { learners: '', rate: '', notes: '' },
   additional_revenue: '',
   additional_revenue_notes: '',
-  faculty_directors: [{ name: '', engagement_period: '', allocation: '' }],
-  faculty_sharing_notes: '',
-  guest_speakers_count: '',
-  guest_speaker_rate: '',
-  guest_speaker_notes: '',
-  additional_expenses: '',
-  additional_expenses_notes: '',
+  build: emptyLines(BUILD_LINE_KEYS),
+  hybrid: emptyLines(HYBRID_LINE_KEYS),
+  async_hourly_rate: '',
+  async_tasks: Object.fromEntries(
+    ASYNC_TASK_KEYS.map((k) => [k, { performs: '', hours: '', scope: '' }]),
+  ) as Record<AsyncTaskKey, BudgetAsyncTask>,
+  faculty_directors: [{ name: '', build: '', delivery: '', role: '' }],
 };
+
+/** Fill in any budget fields missing from a saved proposal (older saves, partial data). */
+export function normalizeBudget(raw: any): CourseBudget {
+  const b = raw || {};
+  const fill = <T,>(base: Record<string, T>, saved: any) =>
+    Object.fromEntries(Object.entries(base).map(([k, v]) => [k, { ...v, ...(saved?.[k] || {}) }]));
+  return {
+    ...EMPTY_BUDGET,
+    ...b,
+    build: fill(EMPTY_BUDGET.build, b.build) as CourseBudget['build'],
+    hybrid: fill(EMPTY_BUDGET.hybrid, b.hybrid) as CourseBudget['hybrid'],
+    async_tasks: fill(EMPTY_BUDGET.async_tasks, b.async_tasks) as CourseBudget['async_tasks'],
+    faculty_directors:
+      Array.isArray(b.faculty_directors) && b.faculty_directors.length
+        ? b.faculty_directors.map((fd: any) => ({
+            name: fd.name || '',
+            build: fd.build || '',
+            delivery: fd.delivery || '',
+            role: fd.role || fd.engagement_period || '',
+          }))
+        : EMPTY_BUDGET.faculty_directors,
+  };
+}
 
 export const EMPTY_PROPOSAL: Proposal = {
   primary_contact: { name: '', email: '' },

@@ -353,6 +353,10 @@ export default function Marketing() {
           <BudgetBuilder
             courseTitle={proposal.course_overview.course_name}
             tuition={proposal.course_overview.tuition}
+            contactHours={proposal.course_overview.contact_hours}
+            contactHoursLive={proposal.course_overview.contact_hours_live}
+            contactHoursVirtualSync={proposal.course_overview.contact_hours_virtual_sync}
+            contactHoursAsync={proposal.course_overview.contact_hours_async}
             budget={proposal.financials.budget}
             onChange={(budget) => updateSection('financials', { budget })}
           />

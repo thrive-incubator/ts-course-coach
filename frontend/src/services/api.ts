@@ -424,20 +424,25 @@ export function calculatePricing(payload: {
 
 // ---- Course budget worksheet --------------------------------------------
 
+type BudgetLinePayload = { quantity: number | null; rate: number | null; notes: string };
+
 export interface BudgetPayload {
   course_title: string;
-  employer_sponsored: { learners: number; rate: number; notes: string };
-  self_pay: { learners: number; rate: number; notes: string };
-  scholarship: { learners: number; rate: number; notes: string };
-  additional_revenue: number;
+  course_format: 'Hybrid' | 'Fully Asynchronous' | '';
+  target_launch_date: string;
+  prepared_by: string;
+  contact_hours: number | null;
+  tuition: number;
+  employer_sponsored: { learners: number; rate: number | null; notes: string };
+  self_pay: { learners: number; rate: number | null; notes: string };
+  scholarship: { learners: number; rate: number | null; notes: string };
+  additional_revenue: number | null;
   additional_revenue_notes: string;
-  faculty_directors: { name: string; engagement_period: string; allocation: number }[];
-  faculty_sharing_notes: string;
-  guest_speakers_count: number;
-  guest_speaker_rate: number;
-  guest_speaker_notes: string;
-  additional_expenses: number;
-  additional_expenses_notes: string;
+  build: Record<string, BudgetLinePayload>;
+  hybrid: Record<string, BudgetLinePayload>;
+  async_hourly_rate: number | null;
+  async_tasks: Record<string, { performs: boolean | null; hours: number | null; scope: string }>;
+  faculty_directors: { name: string; build: number | null; delivery: number | null; role: string }[];
 }
 
 /** Fetch the filled-in budget worksheet as an .xlsx blob. */

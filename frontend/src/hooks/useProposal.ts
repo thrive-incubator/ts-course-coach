@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   EMPTY_PROPOSAL,
   migrateLegacyRow,
+  normalizeBudget,
   type CourseModule,
   type Proposal,
 } from '../types/proposal';
@@ -101,7 +102,7 @@ export function hydrate(raw: any): Proposal {
     financials: {
       ...base.financials,
       ...(raw?.financials || {}),
-      budget: { ...base.financials.budget, ...(raw?.financials?.budget || {}) },
+      budget: normalizeBudget(raw?.financials?.budget),
     },
     social_plan: { ...base.social_plan, ...(raw?.social_plan || {}) },
     marketing_extras: {
