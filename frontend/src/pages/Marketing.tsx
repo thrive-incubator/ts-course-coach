@@ -328,10 +328,7 @@ export default function Marketing() {
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
             Section 3
           </div>
-          <h2 className="mb-1 text-xl font-bold text-slate-900">Pricing &amp; financials</h2>
-          <p className="mb-6 text-sm text-slate-500">
-            What does it cost to run, and what should it cost to enroll?
-          </p>
+          <h2 className="mb-6 text-xl font-bold text-slate-900">Pricing &amp; financials</h2>
 
           <PricingCoach
             contactHours={proposal.course_overview.contact_hours}
