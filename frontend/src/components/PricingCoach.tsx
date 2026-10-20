@@ -7,7 +7,7 @@ interface Props {
   contactHoursVirtualSync: string;
   contactHoursAsync: string;
   onContactHoursChange: (v: string) => void;
-  onApplyPrice?: (price: string) => void;
+  onPriceCalculated: (price: string) => void;
 }
 
 // Pull the first number out of free text like "40", "40 hours", "1,200".
@@ -54,7 +54,10 @@ export default function PricingCoach(props: Props) {
     setLoading(true);
     setError(null);
     try {
-      setResult(await calculatePricing({ total_contact_hours: hours, has_synchronous: hasSync }));
+      const r = await calculatePricing({ total_contact_hours: hours, has_synchronous: hasSync });
+      setResult(r);
+      // The formula determines tuition — write it straight into the Tuition field.
+      props.onPriceCalculated(r.tuition_display);
     } catch (e) {
       setError(humanError(e, 'Could not calculate pricing.'));
     } finally {
@@ -148,22 +151,14 @@ export default function PricingCoach(props: Props) {
       {result && (
         <div className="mt-4 rounded-xl border border-emerald-300 bg-white p-5">
           <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-            Suggested tuition
+            Tuition
           </div>
           <div className="mt-1 text-3xl font-bold text-slate-900">{result.tuition_display}</div>
           <p className="mt-2 text-sm text-slate-700">
             {result.total_contact_hours} contact hours ÷ 10 = {result.ce_units} CE × $
             {result.rate_per_ce_usd}/CE — {result.delivery_label.toLowerCase()}.
           </p>
-          {props.onApplyPrice && (
-            <button
-              type="button"
-              onClick={() => props.onApplyPrice && props.onApplyPrice(result.tuition_display)}
-              className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-            >
-              Use this price
-            </button>
-          )}
+          <p className="mt-2 text-xs text-slate-500">Added to the Tuition field below.</p>
         </div>
       )}
     </div>

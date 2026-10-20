@@ -191,6 +191,7 @@ export interface Proposal {
   };
   financials: {
     financial_overview: string;
+    budget: CourseBudget;
   };
   social_plan: {
     campaign_weeks: string;
@@ -209,6 +210,50 @@ export interface Proposal {
     tone_notes: string;
   };
 }
+
+// Mirrors the Thrive Academy Course Budget Worksheet. Numbers are kept as strings
+// so the inputs behave like the rest of the form; they're parsed at calculation time.
+export interface BudgetRevenueLine {
+  learners: string;
+  rate: string;
+  notes: string;
+}
+
+export interface BudgetFacultyDirector {
+  name: string;
+  engagement_period: string;
+  allocation: string;
+}
+
+export interface CourseBudget {
+  employer_sponsored: BudgetRevenueLine;
+  self_pay: BudgetRevenueLine;
+  scholarship: BudgetRevenueLine;
+  additional_revenue: string;
+  additional_revenue_notes: string;
+  faculty_directors: BudgetFacultyDirector[];
+  faculty_sharing_notes: string;
+  guest_speakers_count: string;
+  guest_speaker_rate: string;
+  guest_speaker_notes: string;
+  additional_expenses: string;
+  additional_expenses_notes: string;
+}
+
+export const EMPTY_BUDGET: CourseBudget = {
+  employer_sponsored: { learners: '', rate: '', notes: '' },
+  self_pay: { learners: '', rate: '', notes: '' },
+  scholarship: { learners: '', rate: '', notes: '' },
+  additional_revenue: '',
+  additional_revenue_notes: '',
+  faculty_directors: [{ name: '', engagement_period: '', allocation: '' }],
+  faculty_sharing_notes: '',
+  guest_speakers_count: '',
+  guest_speaker_rate: '',
+  guest_speaker_notes: '',
+  additional_expenses: '',
+  additional_expenses_notes: '',
+};
 
 export const EMPTY_PROPOSAL: Proposal = {
   primary_contact: { name: '', email: '' },
@@ -301,7 +346,7 @@ export const EMPTY_PROPOSAL: Proposal = {
     netiquette_statement: GEORGETOWN_POLICIES.netiquette,
     additional_policies: '',
   },
-  financials: { financial_overview: '' },
+  financials: { financial_overview: '', budget: EMPTY_BUDGET },
   social_plan: {
     campaign_weeks: '12',
     start_date: '',

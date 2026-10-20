@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import BudgetBuilder from '../components/BudgetBuilder';
 import CoachButton from '../components/CoachButton';
 import PricingCoach from '../components/PricingCoach';
 import WorkspaceHeader from '../components/WorkspaceHeader';
@@ -338,10 +339,13 @@ export default function Marketing() {
             contactHoursVirtualSync={proposal.course_overview.contact_hours_virtual_sync}
             contactHoursAsync={proposal.course_overview.contact_hours_async}
             onContactHoursChange={(v) => updateSection('course_overview', { contact_hours: v })}
-            onApplyPrice={(p) => updateSection('course_overview', { tuition: p })}
+            onPriceCalculated={(p) => updateSection('course_overview', { tuition: p })}
           />
 
-          <Field label="Tuition" hint="The price a learner pays to enroll.">
+          <Field
+            label="Tuition"
+            hint="The price a learner pays to enroll. Filled in automatically when you run Analyze pricing."
+          >
             <TextInput
               value={proposal.course_overview.tuition}
               onChange={(v) => updateSection('course_overview', { tuition: v })}
@@ -375,6 +379,13 @@ export default function Marketing() {
               rows={8}
             />
           </Field>
+
+          <BudgetBuilder
+            courseTitle={proposal.course_overview.course_name}
+            tuition={proposal.course_overview.tuition}
+            budget={proposal.financials.budget}
+            onChange={(budget) => updateSection('financials', { budget })}
+          />
         </section>
 
         {/* Social Media Marketing Plan */}

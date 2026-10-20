@@ -422,6 +422,35 @@ export function calculatePricing(payload: {
   });
 }
 
+// ---- Course budget worksheet --------------------------------------------
+
+export interface BudgetPayload {
+  course_title: string;
+  employer_sponsored: { learners: number; rate: number; notes: string };
+  self_pay: { learners: number; rate: number; notes: string };
+  scholarship: { learners: number; rate: number; notes: string };
+  additional_revenue: number;
+  additional_revenue_notes: string;
+  faculty_directors: { name: string; engagement_period: string; allocation: number }[];
+  faculty_sharing_notes: string;
+  guest_speakers_count: number;
+  guest_speaker_rate: number;
+  guest_speaker_notes: string;
+  additional_expenses: number;
+  additional_expenses_notes: string;
+}
+
+/** Fetch the filled-in budget worksheet as an .xlsx blob. */
+export async function downloadBudgetXlsx(payload: BudgetPayload): Promise<Blob> {
+  const res = await fetchWithTimeout(`${API_BASE}/budget/xlsx`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+  });
+  if (!res.ok) throw await responseError(res);
+  return res.blob();
+}
+
 // ---- Import from Course Conceptualization Tool ---------------------------
 
 export interface ImportResponse {

@@ -98,7 +98,11 @@ export function hydrate(raw: any): Proposal {
           }))
         : [],
     },
-    financials: { ...base.financials, ...(raw?.financials || {}) },
+    financials: {
+      ...base.financials,
+      ...(raw?.financials || {}),
+      budget: { ...base.financials.budget, ...(raw?.financials?.budget || {}) },
+    },
     social_plan: { ...base.social_plan, ...(raw?.social_plan || {}) },
     marketing_extras: {
       ...base.marketing_extras,
