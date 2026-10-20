@@ -1,85 +1,142 @@
-import { useState } from 'react';
-import { analyzePricing, humanError, type PricingResponse } from '../services/api';
+import { useEffect, useState } from 'react';
+import { calculatePricing, humanError, type PricingCalcResponse } from '../services/api';
 
 interface Props {
-  courseName: string;
-  courseDescription: string;
-  courseType: string;
-  courseFormat: string;
-  intendedAudiences: string;
-  duration: string;
   contactHours: string;
-  cohortSize: string;
-  currentTuition: string;
+  contactHoursLive: string;
+  contactHoursVirtualSync: string;
+  contactHoursAsync: string;
+  onContactHoursChange: (v: string) => void;
   onApplyPrice?: (price: string) => void;
+}
+
+// Pull the first number out of free text like "40", "40 hours", "1,200".
+function parseHours(v: string): number | null {
+  const m = v.replace(/,/g, '').match(/\d+(\.\d+)?/);
+  if (!m) return null;
+  const n = parseFloat(m[0]);
+  return n > 0 ? n : null;
+}
+
+// Best guess at "any synchronous component?" from the Course Basics breakdown.
+function inferSynchronous(p: Props): boolean | null {
+  const live = parseHours(p.contactHoursLive) ?? 0;
+  const virt = parseHours(p.contactHoursVirtualSync) ?? 0;
+  const async = parseHours(p.contactHoursAsync) ?? 0;
+  if (live > 0 || virt > 0) return true;
+  if (async > 0) return false;
+  return null;
 }
 
 export default function PricingCoach(props: Props) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<PricingResponse | null>(null);
+  const [result, setResult] = useState<PricingCalcResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canAnalyze =
-    props.courseName.trim().length > 0 &&
-    props.intendedAudiences.trim().length > 0;
+  const inferred = inferSynchronous(props);
+  const [hasSync, setHasSync] = useState<boolean | null>(inferred);
+  const [syncTouched, setSyncTouched] = useState(false);
+
+  useEffect(() => {
+    if (!syncTouched) setHasSync(inferred);
+  }, [inferred, syncTouched]);
+
+  // Any change to the inputs invalidates the last calculation.
+  useEffect(() => {
+    setResult(null);
+  }, [props.contactHours, hasSync]);
+
+  const hours = parseHours(props.contactHours);
+  const canAnalyze = hours !== null && hasSync !== null;
 
   async function run() {
+    if (hours === null || hasSync === null) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await analyzePricing({
-        course_name: props.courseName,
-        course_description: props.courseDescription,
-        course_type: props.courseType,
-        course_format: props.courseFormat,
-        intended_audiences: props.intendedAudiences,
-        duration: props.duration,
-        contact_hours: props.contactHours,
-        cohort_size: props.cohortSize,
-        current_tuition: props.currentTuition,
-      });
-      setResult(res);
+      setResult(await calculatePricing({ total_contact_hours: hours, has_synchronous: hasSync }));
     } catch (e) {
-      setError(humanError(e, 'Could not analyze pricing.'));
+      setError(humanError(e, 'Could not calculate pricing.'));
     } finally {
       setLoading(false);
     }
   }
 
+  function chooseSync(v: boolean) {
+    setSyncTouched(true);
+    setHasSync(v);
+  }
+
+  const choiceClass = (active: boolean) =>
+    `rounded-lg border px-3 py-2 text-sm font-medium ${
+      active
+        ? 'border-emerald-600 bg-emerald-600 text-white'
+        : 'border-slate-300 bg-white text-slate-700 hover:border-emerald-400'
+    }`;
+
   return (
     <div className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-6">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-            Pricing intelligence
-          </div>
-          <h3 className="text-lg font-bold text-slate-900">
-            Benchmark against comparable university programs
-          </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            The coach looks at your course details and proposes a defensible tuition band based on
-            real, publicly-offered continuing-ed and professional-certificate programs whose format,
-            duration, and audience most closely match.
-          </p>
+      <div className="mb-4">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+          Pricing intelligence
         </div>
+        <h3 className="text-lg font-bold text-slate-900">Calculate your course tuition</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Thrive Academy prices courses per contact hour: <strong>$60/hour</strong> for fully
+          asynchronous / self-paced courses, and <strong>$300/hour</strong> for any course with
+          synchronous content (in-person or virtual). Answer the two questions below.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-slate-800">
+            1. How many total contact hours is the course?
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={props.contactHours}
+            onChange={(e) => props.onContactHoursChange(e.target.value)}
+            placeholder="e.g. 30"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-slate-500">Same as Total contact hours in Course Basics.</p>
+        </div>
+        <div>
+          <div className="mb-1 text-sm font-semibold text-slate-800">
+            2. Does the course have any synchronous components (in-person or virtual)?
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => chooseSync(true)} className={choiceClass(hasSync === true)}>
+              Yes
+            </button>
+            <button type="button" onClick={() => chooseSync(false)} className={choiceClass(hasSync === false)}>
+              No — fully asynchronous
+            </button>
+          </div>
+          {!syncTouched && inferred !== null && (
+            <p className="mt-1 text-xs text-slate-500">
+              Pre-filled from your contact hours by mode in Course Basics.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={run}
-          disabled={true}
-          className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          title="Temporarily disabled — pricing intelligence is being updated"
+          disabled={loading || !canAnalyze}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          title={!canAnalyze ? 'Answer both questions first' : ''}
         >
-          {loading
-            ? 'Analyzing…'
-            : '📊 Analyze pricing (updating)'}
+          {loading ? 'Calculating…' : '📊 Analyze pricing'}
         </button>
+        {!canAnalyze && (
+          <span className="text-xs text-slate-500">Answer both questions to calculate tuition.</span>
+        )}
       </div>
-
-      {!canAnalyze && !result && (
-        <p className="text-xs text-slate-500">
-          Add a course name and intended audience (in the landing page or overview) to run this.
-        </p>
-      )}
 
       {error && (
         <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
@@ -88,91 +145,23 @@ export default function PricingCoach(props: Props) {
       )}
 
       {result && (
-        <div className="mt-4 space-y-5">
-          <div className="rounded-xl border border-emerald-300 bg-white p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              Suggested tuition band
-            </div>
-            <div className="mt-1 text-3xl font-bold text-slate-900">
-              {result.suggested_range_low} <span className="text-slate-400">–</span>{' '}
-              {result.suggested_range_high}
-            </div>
-            {result.positioning_note && (
-              <p className="mt-3 text-sm text-slate-700">{result.positioning_note}</p>
-            )}
+        <div className="mt-4 rounded-xl border border-emerald-300 bg-white p-5">
+          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            Suggested tuition
           </div>
-
-          {result.scenarios.length > 0 && (
-            <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Three price scenarios
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {result.scenarios.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col rounded-xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {s.label}
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-slate-900">{s.price}</div>
-                    {s.tradeoff && (
-                      <p className="mt-2 flex-1 text-xs text-slate-600">{s.tradeoff}</p>
-                    )}
-                    {props.onApplyPrice && (
-                      <button
-                        type="button"
-                        onClick={() => props.onApplyPrice && props.onApplyPrice(s.price)}
-                        className="mt-3 rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white hover:bg-slate-700"
-                      >
-                        Use this price
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.comparables.length > 0 && (
-            <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Comparable programs
-              </div>
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <div className="hidden grid-cols-12 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
-                  <div className="col-span-4">Program</div>
-                  <div className="col-span-3">Format · duration</div>
-                  <div className="col-span-2">Price</div>
-                  <div className="col-span-3">Why comparable</div>
-                </div>
-                {result.comparables.map((c, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-1 gap-3 border-b border-slate-100 px-4 py-3 text-sm last:border-0 md:grid-cols-12"
-                  >
-                    <div className="md:col-span-4">
-                      <div className="font-semibold text-slate-900">{c.program}</div>
-                      <div className="text-xs text-slate-500">{c.institution}</div>
-                    </div>
-                    <div className="text-xs text-slate-600 md:col-span-3">
-                      {c.format}
-                      {c.format && c.duration ? ' · ' : ''}
-                      {c.duration}
-                    </div>
-                    <div className="text-sm font-semibold text-emerald-700 md:col-span-2">
-                      {c.price_range}
-                    </div>
-                    <div className="text-xs text-slate-600 md:col-span-3">{c.why_comparable}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.caveats && (
-            <p className="text-xs italic text-slate-500">{result.caveats}</p>
+          <div className="mt-1 text-3xl font-bold text-slate-900">{result.tuition_display}</div>
+          <p className="mt-2 text-sm text-slate-700">
+            {result.total_contact_hours} contact hours × ${result.rate_per_hour_usd}/hour —{' '}
+            {result.delivery_label.toLowerCase()}.
+          </p>
+          {props.onApplyPrice && (
+            <button
+              type="button"
+              onClick={() => props.onApplyPrice && props.onApplyPrice(result.tuition_display)}
+              className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+            >
+              Use this price
+            </button>
           )}
         </div>
       )}

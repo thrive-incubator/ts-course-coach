@@ -102,6 +102,45 @@ def _system_instruction() -> str:
     )
 
 
+# Thrive Academy pricing formula (per JB, Oct 2026): tuition = total contact hours x rate,
+# where the rate depends only on whether the course has ANY synchronous component.
+ASYNC_RATE_USD = 60  # fully asynchronous / self-paced
+SYNC_RATE_USD = 300  # any mix that includes in-person or virtual synchronous time
+
+
+class PricingCalcRequest(BaseModel):
+    total_contact_hours: float = Field(gt=0, description="Cumulative contact hours for the course")
+    has_synchronous: bool = Field(description="Any in-person or virtual synchronous component?")
+
+
+class PricingCalcResponse(BaseModel):
+    total_contact_hours: float
+    has_synchronous: bool
+    delivery_label: str
+    rate_per_hour_usd: int
+    tuition_usd: int
+    tuition_display: str
+
+
+@router.post("/calculate", response_model=PricingCalcResponse)
+async def calculate_pricing(req: PricingCalcRequest) -> PricingCalcResponse:
+    """Apply the Thrive Academy per-contact-hour pricing formula."""
+    rate = SYNC_RATE_USD if req.has_synchronous else ASYNC_RATE_USD
+    tuition = round(req.total_contact_hours * rate)
+    return PricingCalcResponse(
+        total_contact_hours=req.total_contact_hours,
+        has_synchronous=req.has_synchronous,
+        delivery_label=(
+            "Includes synchronous content (in-person or virtual)"
+            if req.has_synchronous
+            else "Fully asynchronous / self-paced"
+        ),
+        rate_per_hour_usd=rate,
+        tuition_usd=tuition,
+        tuition_display=f"${tuition:,}",
+    )
+
+
 @router.post("/analyze", response_model=PricingResponse)
 async def analyze_pricing(req: PricingRequest) -> PricingResponse:
     """Suggest a tuition band and comparable programs for the given course concept."""

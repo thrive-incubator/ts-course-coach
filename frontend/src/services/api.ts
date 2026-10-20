@@ -402,6 +402,25 @@ export function analyzePricing(payload: {
   });
 }
 
+export interface PricingCalcResponse {
+  total_contact_hours: number;
+  has_synchronous: boolean;
+  delivery_label: string;
+  rate_per_hour_usd: number;
+  tuition_usd: number;
+  tuition_display: string;
+}
+
+export function calculatePricing(payload: {
+  total_contact_hours: number;
+  has_synchronous: boolean;
+}) {
+  return apiFetch<PricingCalcResponse>('/pricing/calculate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 // ---- Import from Course Conceptualization Tool ---------------------------
 
 export interface ImportResponse {

@@ -333,15 +333,11 @@ export default function Marketing() {
           </p>
 
           <PricingCoach
-            courseName={proposal.course_overview.course_name}
-            courseDescription={proposal.course_overview.course_description}
-            courseType={proposal.course_overview.course_type}
-            courseFormat={proposal.course_overview.course_format}
-            intendedAudiences={proposal.course_overview.intended_audiences}
-            duration={proposal.course_overview.duration}
             contactHours={proposal.course_overview.contact_hours}
-            cohortSize={proposal.course_overview.cohort_size}
-            currentTuition={proposal.course_overview.tuition}
+            contactHoursLive={proposal.course_overview.contact_hours_live}
+            contactHoursVirtualSync={proposal.course_overview.contact_hours_virtual_sync}
+            contactHoursAsync={proposal.course_overview.contact_hours_async}
+            onContactHoursChange={(v) => updateSection('course_overview', { contact_hours: v })}
             onApplyPrice={(p) => updateSection('course_overview', { tuition: p })}
           />
 
