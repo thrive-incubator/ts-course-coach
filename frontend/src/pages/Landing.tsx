@@ -229,6 +229,31 @@ export default function Landing() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/40 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Before you launch
+              </div>
+              <h3 className="mb-1 text-lg font-bold text-slate-900">
+                ✅ Launch readiness checklist
+              </h3>
+              <p className="text-sm text-slate-600">
+                Check you have everything you need to open your course — the must-haves like a
+                syllabus, modules, a set price and a way to register, plus the nice-to-haves like
+                social media and outreach.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/launch-checklist')}
+              className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+            >
+              Open launch checklist →
+            </button>
+          </div>
+        </div>
+
         {hasBasics && (
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm">
             <button

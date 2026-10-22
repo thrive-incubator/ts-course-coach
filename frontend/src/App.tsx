@@ -6,6 +6,7 @@ import MarketingBrief from './pages/MarketingBrief';
 import Preview from './pages/Preview';
 import ArticulateGuide from './pages/ArticulateGuide';
 import Syllabus from './pages/Syllabus';
+import LaunchChecklist from './pages/LaunchChecklist';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/brief" element={<MarketingBrief />} />
       <Route path="/preview" element={<Preview />} />
       <Route path="/articulate-guide" element={<ArticulateGuide />} />
+      <Route path="/launch-checklist" element={<LaunchChecklist />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

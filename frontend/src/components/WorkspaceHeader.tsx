@@ -73,6 +73,14 @@ export default function WorkspaceHeader({
           >
             Preview
           </button>
+          <button
+            type="button"
+            onClick={() => navigate('/launch-checklist')}
+            className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100"
+          >
+            <span aria-hidden className="mr-1">✅</span>
+            Launch checklist
+          </button>
           <AuthMenu
             onLoadProposal={(id) => {
               const u = new URL(window.location.href);

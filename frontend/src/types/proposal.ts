@@ -193,6 +193,10 @@ export interface Proposal {
     financial_overview: string;
     budget: CourseBudget;
   };
+  launch_checklist: {
+    // Must-have / nice-to-have items not already tracked by the outreach checklist.
+    done: Record<string, boolean>;
+  };
   social_plan: {
     campaign_weeks: string;
     start_date: string;
@@ -453,6 +457,7 @@ export const EMPTY_PROPOSAL: Proposal = {
     additional_policies: '',
   },
   financials: { financial_overview: '', budget: EMPTY_BUDGET },
+  launch_checklist: { done: {} },
   social_plan: {
     campaign_weeks: '12',
     start_date: '',

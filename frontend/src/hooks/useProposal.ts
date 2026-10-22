@@ -105,6 +105,9 @@ export function hydrate(raw: any): Proposal {
       budget: normalizeBudget(raw?.financials?.budget),
     },
     social_plan: { ...base.social_plan, ...(raw?.social_plan || {}) },
+    launch_checklist: {
+      done: { ...((raw?.launch_checklist?.done as Record<string, boolean>) || {}) },
+    },
     marketing_extras: {
       ...base.marketing_extras,
       ...(raw?.marketing_extras || {}),
