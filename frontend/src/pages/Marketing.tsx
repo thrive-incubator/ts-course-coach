@@ -107,7 +107,10 @@ export default function Marketing() {
               placeholder="Working title"
             />
           </Field>
-          <Field label="Intended audience">
+          <Field
+            label="Intended audience"
+            hint="Roughly how many of these people exist in the market you can realistically reach?"
+          >
             <Textarea
               value={proposal.course_overview.intended_audiences}
               onChange={(v) => updateSection('course_overview', { intended_audiences: v })}
@@ -205,8 +208,9 @@ export default function Marketing() {
           </p>
 
           <p className="mb-4 text-xs italic text-slate-500">
-            These three boxes are auto-imported from your Course Conceptualization Form upload.
-            If any come in blank or thin, the Coach appears to help you expand or strengthen them.
+            Needs statement, Evidence of demand, and Competitive landscape are auto-imported from
+            your Course Conceptualization Form upload. If any box is blank or thin, the Coach
+            appears to help you expand or strengthen it.
           </p>
 
           <Field
@@ -240,7 +244,7 @@ export default function Marketing() {
 
           <Field
             label="Evidence of demand"
-            hint="Waitlists, surveys, workforce reports, employer requests, CEU shifts…"
+            hint="Waitlists, surveys, workforce reports, employer requests, CEU shifts… What's the strongest evidence that people will pay for this, not just that they find it interesting?"
             coach={
               isSparse(proposal.rationale.evidence_of_demand) ? (
                 <CoachButton
@@ -292,6 +296,64 @@ export default function Marketing() {
             <Textarea
               value={proposal.rationale.competitive_landscape}
               onChange={(v) => updateSection('rationale', { competitive_landscape: v })}
+              rows={5}
+            />
+          </Field>
+
+          <Field
+            label="Buyer vs. learner"
+            hint="Who will pay for your course: the learner, their employer, a grant, or an association? Who makes the purchasing decision, and what do they need to say yes?"
+            coach={
+              isSparse(proposal.rationale.buyer_vs_learner) ? (
+                <CoachButton
+                  section="rationale"
+                  field="buyer_vs_learner"
+                  fieldLabel="Buyer vs. learner"
+                  currentValue={proposal.rationale.buyer_vs_learner}
+                  courseContext={courseContext}
+                  onApplyExample={(v) =>
+                    updateSection('rationale', {
+                      buyer_vs_learner: proposal.rationale.buyer_vs_learner
+                        ? proposal.rationale.buyer_vs_learner + '\n\n' + v
+                        : v,
+                    })
+                  }
+                />
+              ) : undefined
+            }
+          >
+            <Textarea
+              value={proposal.rationale.buyer_vs_learner}
+              onChange={(v) => updateSection('rationale', { buyer_vs_learner: v })}
+              rows={5}
+            />
+          </Field>
+
+          <Field
+            label="Willingness and/or ability to pay"
+            hint="How does the proposed tuition compare to similar offerings, and what evidence suggests your target audience and/or identified payors will be willing and able to pay?"
+            coach={
+              isSparse(proposal.rationale.willingness_to_pay) ? (
+                <CoachButton
+                  section="rationale"
+                  field="willingness_to_pay"
+                  fieldLabel="Willingness and/or ability to pay"
+                  currentValue={proposal.rationale.willingness_to_pay}
+                  courseContext={courseContext}
+                  onApplyExample={(v) =>
+                    updateSection('rationale', {
+                      willingness_to_pay: proposal.rationale.willingness_to_pay
+                        ? proposal.rationale.willingness_to_pay + '\n\n' + v
+                        : v,
+                    })
+                  }
+                />
+              ) : undefined
+            }
+          >
+            <Textarea
+              value={proposal.rationale.willingness_to_pay}
+              onChange={(v) => updateSection('rationale', { willingness_to_pay: v })}
               rows={5}
             />
           </Field>

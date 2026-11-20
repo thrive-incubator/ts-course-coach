@@ -197,6 +197,8 @@ def _render_for_brief(p: dict[str, Any]) -> str:
     out += line("Needs statement", rationale.get("needs_statement"))
     out += line("Evidence of demand", rationale.get("evidence_of_demand"))
     out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Buyer vs. learner", rationale.get("buyer_vs_learner"))
+    out += line("Willingness / ability to pay", rationale.get("willingness_to_pay"))
     out += line("Additional notes", rationale.get("additional_notes"))
     recruitment_val = enrollment.get("recruitment") or enrollment.get("recruitment_and_marketing")
     out += line("Recruitment plan so far (where to reach the audience)", recruitment_val)
@@ -344,6 +346,8 @@ def _render_for_package(p: dict[str, Any]) -> str:
     out += line("Needs statement", rationale.get("needs_statement"))
     out += line("Evidence of demand", rationale.get("evidence_of_demand"))
     out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Buyer vs. learner", rationale.get("buyer_vs_learner"))
+    out += line("Willingness / ability to pay", rationale.get("willingness_to_pay"))
     out += line("Additional notes", rationale.get("additional_notes"))
 
     out += "\nENROLLMENT:\n"
@@ -523,6 +527,8 @@ def _render_for_social_plan(p: dict[str, Any]) -> str:
     out += line("Needs statement", rationale.get("needs_statement"))
     out += line("Evidence of demand", rationale.get("evidence_of_demand"))
     out += line("Competitive landscape", rationale.get("competitive_landscape"))
+    out += line("Buyer vs. learner", rationale.get("buyer_vs_learner"))
+    out += line("Willingness / ability to pay", rationale.get("willingness_to_pay"))
     out += line("Recruitment plan", enrollment.get("recruitment"))
     out += line("Marketing plan (message + proof points)", enrollment.get("marketing"))
     out += line("Course essential question", design.get("essential_question"))
@@ -700,6 +706,8 @@ async def export_proposal(req: Proposal) -> ExportResponse:
         ("Needs Statement", "needs_statement"),
         ("Evidence of Demand", "evidence_of_demand"),
         ("Competitive Landscape", "competitive_landscape"),
+        ("Buyer vs. Learner", "buyer_vs_learner"),
+        ("Willingness and/or Ability to Pay", "willingness_to_pay"),
         ("Additional Notes", "additional_notes"),
     ]:
         md += _fmt(label, rationale.get(key))

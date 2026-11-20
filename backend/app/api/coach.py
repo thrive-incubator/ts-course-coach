@@ -125,6 +125,20 @@ FIELD_PROMPTS: dict[str, str] = {
         "to name 2-3 real alternatives and their positioning. Then help them articulate the "
         "distinct wedge Thrive Academy offers. Suggest 2 sample alternative-plus-differentiator lines."
     ),
+    "buyer_vs_learner": (
+        "Coach the faculty on Buyer vs. Learner. Push them to separate who LEARNS from who PAYS "
+        "(the learner, their employer, a grant, or an association) and who makes the purchasing "
+        "decision. Help them name what that decision-maker needs to say yes (budget timing, "
+        "CE credit, outcomes for the organization, approval steps). Suggest 2 example lines "
+        "tuned to this course's audience."
+    ),
+    "willingness_to_pay": (
+        "Coach the faculty on Willingness and/or Ability to Pay. Push them to compare the "
+        "proposed tuition against 2-3 similar offerings and to cite evidence the audience or "
+        "payors will actually pay (past paid enrollments, employer PD budgets, grant funding, "
+        "association reimbursement). Flag interest-only evidence as insufficient. Suggest 2 "
+        "concrete evidence types that would fit this course."
+    ),
     "recruitment": (
         "Coach the faculty on Recruitment — where they can actually reach the intended audience. "
         "Focus on: the listservs, associations, LinkedIn groups, conferences, state chapters, "
