@@ -23,7 +23,7 @@ const ACCENTS = {
   pedagogy: {
     kicker: 'text-violet-700',
     switchBg: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-    switchLabel: 'Switch to marketing & pricing →',
+    switchLabel: 'Switch to marketing & outreach →',
     switchIcon: '📣',
   },
 };

@@ -3,6 +3,7 @@ import BudgetBuilder from '../components/BudgetBuilder';
 import CoachButton from '../components/CoachButton';
 import PricingCoach from '../components/PricingCoach';
 import WorkspaceHeader from '../components/WorkspaceHeader';
+import { SHOW_PRICING_SECTION } from '../featureFlags';
 import { Field, Select, TextInput, Textarea } from '../components/Field';
 import { useProposal } from '../hooks/useProposal';
 import {
@@ -60,7 +61,7 @@ export default function Marketing() {
   return (
     <div className="min-h-screen bg-slate-50">
       <WorkspaceHeader
-        title="Marketing & pricing workspace"
+        title="Marketing & outreach workspace"
         subtitle="Marketing"
         accent="marketing"
         switchTo="pedagogy"
@@ -323,7 +324,8 @@ export default function Marketing() {
         <OutreachPipelinesSection courseContext={courseContext} />
         <AdmissionsSection />
 
-        {/* Pricing & financials */}
+        {/* Pricing & financials — temporarily hidden (per Slack 2026-11-20); flip SHOW_PRICING_SECTION to bring back */}
+        {SHOW_PRICING_SECTION && (
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
             Section 3
@@ -361,6 +363,7 @@ export default function Marketing() {
             onChange={(budget) => updateSection('financials', { budget })}
           />
         </section>
+        )}
 
         {/* Social Media Marketing Plan */}
         <SocialMediaPlanSection />
@@ -415,7 +418,7 @@ function SocialMediaPlanSection() {
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-        Section 4
+        {SHOW_PRICING_SECTION ? 'Section 4' : 'Section 3'}
       </div>
       <h2 className="mb-1 text-xl font-bold text-slate-900">Social media marketing plan</h2>
       <p className="mb-6 text-sm text-slate-500">

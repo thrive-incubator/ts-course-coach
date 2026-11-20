@@ -5,6 +5,7 @@ import ImportConceptualization from '../components/ImportConceptualization';
 import SaveResume from '../components/SaveResume';
 import { useProposal } from '../hooks/useProposal';
 import type { Proposal } from '../types/proposal';
+import { SHOW_PRICING_SECTION } from '../featureFlags';
 
 export default function Landing() {
   const {
@@ -152,17 +153,19 @@ export default function Landing() {
               Workspace 1
             </div>
             <h3 className="mb-2 text-xl font-bold text-slate-900 group-hover:text-emerald-800">
-              Marketing &amp; pricing
+              Marketing &amp; outreach
             </h3>
             <p className="mb-4 flex-1 text-sm text-slate-600">
-              Sharpen your rationale, competitive positioning, recruitment plan, and financials —
-              then get a pricing benchmark against comparable university programs and a launch-ready
-              marketing brief.
+              {SHOW_PRICING_SECTION
+                ? 'Sharpen your rationale, competitive positioning, recruitment plan, and financials — then get a pricing benchmark against comparable university programs and a launch-ready marketing brief.'
+                : 'Sharpen your rationale, competitive positioning, and outreach plan — then build a social media plan and a launch-ready marketing brief.'}
             </p>
             <ul className="mb-4 space-y-1.5 text-xs text-slate-600">
               <li>✓ Needs statement + evidence of demand coaching</li>
               <li>✓ Competitive landscape</li>
-              <li>✓ <strong className="text-emerald-800">Pricing intelligence</strong> — comparable programs + suggested tuition band</li>
+              {SHOW_PRICING_SECTION && (
+                <li>✓ <strong className="text-emerald-800">Pricing intelligence</strong> — comparable programs + suggested tuition band</li>
+              )}
               <li>✓ Audience personas, headlines, channels, social copy</li>
             </ul>
             <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700 group-hover:text-emerald-900">

@@ -497,8 +497,8 @@ export default function Pedagogy() {
             Ready to preview or shift into marketing?
           </h3>
           <p className="mb-4 text-sm text-slate-700">
-            The pedagogy is only half the story — pair it with the audience, pricing, and enrollment
-            side to give Frances / Anna a complete package.
+            The pedagogy is only half the story. Shift to the Marketing &amp; Outreach section to
+            generate demand and enrollment.
           </p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -506,7 +506,7 @@ export default function Pedagogy() {
               onClick={() => navigate('/marketing')}
               className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
             >
-              📣 Go to marketing &amp; pricing →
+              📣 Go to marketing &amp; outreach →
             </button>
             <button
               type="button"
